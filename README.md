@@ -3,8 +3,7 @@
 [![CI](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml)
 
 AI Investment Research Co-Pilot is a source-backed research and education
-platform for stocks, cryptocurrency, Binance markets, and SEC filings. The
-project is designed for a small pilot of approximately 5-15 users and combines
+platform for stocks, cryptocurrency, Binance markets, and SEC filings. The project is designed as a production-ready platform for real-world use, capable of supporting actual users, scaling as adoption grows and combines
 deterministic analytics, evidence retrieval, explainable risk, asynchronous
 reports, alerts, and operational monitoring in one modular system.
 
