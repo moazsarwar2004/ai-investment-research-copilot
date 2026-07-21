@@ -19,6 +19,8 @@ _SAFE_EXTRA_FIELDS = (
     "status_code",
     "duration_ms",
     "version",
+    "dependency",
+    "exception_type",
 )
 
 

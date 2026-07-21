@@ -7,7 +7,7 @@ from functools import lru_cache
 from typing import Literal, Self
 from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator, model_validator
+from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend import __version__
@@ -52,6 +52,24 @@ class Settings(BaseSettings):
     docs_enabled: bool = True
     enable_hsts: bool = False
     hsts_max_age_seconds: int = Field(default=31_536_000, ge=0)
+
+    database_url: SecretStr = SecretStr(
+        "postgresql+asyncpg://copilot_app:local-app-only@127.0.0.1:5432/copilot"
+    )
+    migration_database_url: SecretStr | None = None
+    database_connect_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
+    database_command_timeout_seconds: float = Field(default=5.0, gt=0, le=60)
+    database_probe_timeout_seconds: float = Field(default=3.0, gt=0, le=10)
+    database_pool_size: int = Field(default=5, ge=1, le=20)
+    database_max_overflow: int = Field(default=5, ge=0, le=20)
+    database_pool_timeout_seconds: float = Field(default=5.0, gt=0, le=30)
+    database_pool_recycle_seconds: int = Field(default=1_800, ge=60, le=86_400)
+
+    redis_url: SecretStr = SecretStr("redis://127.0.0.1:6379/0")
+    redis_key_prefix: str = "copilot:v1"
+    redis_connect_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
+    redis_socket_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
+    redis_health_check_interval_seconds: int = Field(default=30, ge=1, le=300)
 
     @field_validator("app_name", "app_version")
     @classmethod
@@ -121,6 +139,52 @@ class Settings(BaseSettings):
             raise ValueError("at least one CORS origin is required")
         return ",".join(normalized_origins)
 
+    @field_validator("database_url", "migration_database_url", mode="before")
+    @classmethod
+    def validate_database_url(cls, value: object) -> object:
+        """Require an async PostgreSQL URL with an explicit database name."""
+        if value is None:
+            return None
+        rendered = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(rendered, str):
+            raise ValueError("database URL must be a string")
+        parsed = urlsplit(rendered)
+        if parsed.scheme != "postgresql+asyncpg":
+            raise ValueError("database URL must use postgresql+asyncpg")
+        if not parsed.hostname or parsed.path in {"", "/"}:
+            raise ValueError("database URL must include a host and database name")
+        if parsed.fragment:
+            raise ValueError("database URL must not contain a fragment")
+        return rendered
+
+    @field_validator("redis_url", mode="before")
+    @classmethod
+    def validate_redis_url(cls, value: object) -> object:
+        """Require a Redis URL whose transport is explicit."""
+        rendered = value.get_secret_value() if isinstance(value, SecretStr) else value
+        if not isinstance(rendered, str):
+            raise ValueError("Redis URL must be a string")
+        parsed = urlsplit(rendered)
+        if parsed.scheme not in {"redis", "rediss"} or not parsed.hostname:
+            raise ValueError(
+                "REDIS_URL must use redis:// or rediss:// and include a host"
+            )
+        if parsed.fragment:
+            raise ValueError("REDIS_URL must not contain a fragment")
+        return rendered
+
+    @field_validator("redis_key_prefix")
+    @classmethod
+    def validate_redis_key_prefix(cls, value: str) -> str:
+        """Keep cache namespaces bounded and operationally recognizable."""
+        normalized = value.strip().lower()
+        allowed = set("abcdefghijklmnopqrstuvwxyz0123456789:_-")
+        if not normalized or len(normalized) > 64:
+            raise ValueError("REDIS_KEY_PREFIX must contain 1-64 characters")
+        if any(character not in allowed for character in normalized):
+            raise ValueError("REDIS_KEY_PREFIX contains unsupported characters")
+        return normalized
+
     @model_validator(mode="after")
     def validate_security_mode(self) -> Self:
         """Prevent unsafe production debug and accidental local HSTS."""
@@ -134,6 +198,23 @@ class Settings(BaseSettings):
     def cors_origins(self) -> list[str]:
         """Return the validated CORS origins as a list for Starlette."""
         return self.allowed_origins.split(",")
+
+    @property
+    def database_dsn(self) -> str:
+        """Return the runtime database URL only at the connection boundary."""
+        return self.database_url.get_secret_value()
+
+    @property
+    def migration_database_dsn(self) -> str:
+        """Return the migration URL, falling back for simple environments."""
+        if self.migration_database_url is None:
+            return self.database_dsn
+        return self.migration_database_url.get_secret_value()
+
+    @property
+    def redis_dsn(self) -> str:
+        """Return the Redis URL only at the connection boundary."""
+        return self.redis_url.get_secret_value()
 
 
 @lru_cache(maxsize=1)

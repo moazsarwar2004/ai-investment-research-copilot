@@ -12,6 +12,8 @@ from backend.app.api.health_routes import health_router, probe_router, root_rout
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.error_handlers import register_exception_handlers
 from backend.app.core.logger import configure_logging, get_logger
+from backend.app.core.resources import ApplicationResources, create_resources
+from backend.app.database import DatabaseManager
 from backend.app.middleware.logging_middleware import RequestLoggingMiddleware
 from backend.app.middleware.request_id_middleware import RequestIDMiddleware
 from backend.app.middleware.security_headers_middleware import (
@@ -28,6 +30,10 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
     if not isinstance(settings, Settings):
         raise RuntimeError("Application settings were not initialized")
 
+    resources: object = application.state.resources
+    if not isinstance(resources, ApplicationResources):
+        raise RuntimeError("Application resources were not initialized")
+
     application.state.started = True
     logger.info(
         "application_started",
@@ -37,13 +43,17 @@ async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         application.state.started = False
+        await resources.close()
         logger.info(
             "application_stopped",
             extra={"version": settings.app_version},
         )
 
 
-def create_application(settings: Settings | None = None) -> FastAPI:
+def create_application(
+    settings: Settings | None = None,
+    resources: ApplicationResources | None = None,
+) -> FastAPI:
     """Create a fully configured, independently testable FastAPI instance."""
     resolved_settings = settings or get_settings()
     configure_logging(resolved_settings)
@@ -62,6 +72,13 @@ def create_application(settings: Settings | None = None) -> FastAPI:
         lifespan=lifespan,
     )
     application.state.settings = resolved_settings
+    resolved_resources = resources or create_resources(resolved_settings)
+    application.state.resources = resolved_resources
+    application.state.database_manager = (
+        resolved_resources.database
+        if isinstance(resolved_resources.database, DatabaseManager)
+        else None
+    )
     application.state.started = False
 
     register_exception_handlers(application)

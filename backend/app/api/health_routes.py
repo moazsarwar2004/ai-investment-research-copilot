@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request, Response, status
 from pydantic import BaseModel, ConfigDict
 
 from backend.app.core.config import Settings
 from backend.app.core.exceptions import ServiceUnavailableError
+from backend.app.core.logger import get_logger
+from backend.app.core.resources import ApplicationResources, HealthResource
+
+logger = get_logger(__name__)
 
 root_router = APIRouter(tags=["application"])
 probe_router = APIRouter(tags=["health"])
@@ -41,16 +46,18 @@ class LivenessResponse(StrictResponseModel):
 
 
 class ReadinessChecks(StrictResponseModel):
-    """Phase 1 readiness checks."""
+    """Reduced dependency detail suitable for the public readiness probe."""
 
     application: Literal["ok"]
     configuration: Literal["ok"]
+    database: Literal["ok", "error"]
+    redis: Literal["ok", "degraded"]
 
 
 class ReadinessResponse(StrictResponseModel):
     """Application readiness response."""
 
-    status: Literal["ready"]
+    status: Literal["ready", "not_ready"]
     checks: ReadinessChecks
 
 
@@ -73,6 +80,27 @@ def _settings(request: Request) -> Settings:
 
 def _disable_caching(response: Response) -> None:
     response.headers["Cache-Control"] = "no-store"
+
+
+def _resources(request: Request) -> ApplicationResources:
+    resources = getattr(request.app.state, "resources", None)
+    if not isinstance(resources, ApplicationResources):
+        raise ServiceUnavailableError("Application infrastructure is unavailable.")
+    return resources
+
+
+async def _safe_ping(resource: HealthResource, *, dependency: str) -> bool:
+    try:
+        return await resource.ping()
+    except Exception as error:
+        logger.warning(
+            "dependency_probe_failed",
+            extra={
+                "dependency": dependency,
+                "exception_type": type(error).__name__,
+            },
+        )
+        return False
 
 
 @root_router.get("/", response_model=RootResponse)
@@ -103,14 +131,26 @@ async def liveness(request: Request, response: Response) -> LivenessResponse:
 
 @probe_router.get("/readyz", response_model=ReadinessResponse)
 async def readiness(request: Request, response: Response) -> ReadinessResponse:
-    """Confirm startup completion and validated Phase 1 configuration."""
+    """Require PostgreSQL while allowing safe operation without cache acceleration."""
     _disable_caching(response)
     if not getattr(request.app.state, "started", False):
         raise ServiceUnavailableError("Application startup has not completed.")
     _settings(request)
+    resources = _resources(request)
+    database_ok, redis_ok = await asyncio.gather(
+        _safe_ping(resources.database, dependency="database"),
+        _safe_ping(resources.cache, dependency="redis"),
+    )
+    if not database_ok:
+        response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
     return ReadinessResponse(
-        status="ready",
-        checks=ReadinessChecks(application="ok", configuration="ok"),
+        status="ready" if database_ok else "not_ready",
+        checks=ReadinessChecks(
+            application="ok",
+            configuration="ok",
+            database="ok" if database_ok else "error",
+            redis="ok" if redis_ok else "degraded",
+        ),
     )
 
 

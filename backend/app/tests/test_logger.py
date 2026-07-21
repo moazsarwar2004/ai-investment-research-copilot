@@ -33,3 +33,23 @@ def test_json_formatter_emits_schema_and_ignores_arbitrary_extra() -> None:
     assert payload["status_code"] == 200
     assert "authorization" not in payload
     assert "Bearer" not in json.dumps(payload)
+
+
+def test_json_formatter_keeps_bounded_dependency_failure_context() -> None:
+    formatter = JsonFormatter(service="test-service", environment="testing")
+    record = logging.LogRecord(
+        name="test",
+        level=logging.WARNING,
+        pathname=__file__,
+        lineno=1,
+        msg="dependency_probe_failed",
+        args=(),
+        exc_info=None,
+    )
+    record.dependency = "database"
+    record.exception_type = "ConnectionError"
+
+    payload = json.loads(formatter.format(record))
+
+    assert payload["dependency"] == "database"
+    assert payload["exception_type"] == "ConnectionError"

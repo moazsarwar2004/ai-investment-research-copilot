@@ -10,7 +10,22 @@ from httpx import ASGITransport, AsyncClient
 from pytest_asyncio import fixture as async_fixture
 
 from backend.app.core.config import Environment, LogFormat, Settings
+from backend.app.core.resources import ApplicationResources
 from backend.app.main import create_application
+
+
+class StubHealthResource:
+    """Deterministic dependency health and lifecycle test double."""
+
+    def __init__(self, *, available: bool = True) -> None:
+        self.available = available
+        self.closed = False
+
+    async def ping(self) -> bool:
+        return self.available
+
+    async def close(self) -> None:
+        self.closed = True
 
 
 @pytest.fixture
@@ -26,9 +41,33 @@ def test_settings() -> Settings:
 
 
 @pytest.fixture
-def application(test_settings: Settings) -> FastAPI:
+def database_resource() -> StubHealthResource:
+    """Return a healthy durable-store test double."""
+    return StubHealthResource()
+
+
+@pytest.fixture
+def cache_resource() -> StubHealthResource:
+    """Return a healthy disposable-cache test double."""
+    return StubHealthResource()
+
+
+@pytest.fixture
+def resources(
+    database_resource: StubHealthResource,
+    cache_resource: StubHealthResource,
+) -> ApplicationResources:
+    """Inject deterministic infrastructure into the application factory."""
+    return ApplicationResources(database=database_resource, cache=cache_resource)
+
+
+@pytest.fixture
+def application(
+    test_settings: Settings,
+    resources: ApplicationResources,
+) -> FastAPI:
     """Build an isolated application instance for each test."""
-    return create_application(test_settings)
+    return create_application(test_settings, resources)
 
 
 @async_fixture

@@ -4,17 +4,21 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-investment-research-copilot"
-version = "0.1.0"
+version = "0.2.0"
 description = "Production-oriented, source-backed investment research foundation."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "Proprietary - research and educational use" }
 authors = [{ name = "AI Investment Research Co-Pilot contributors" }]
 dependencies = [
+    "alembic==1.18.5",
+    "asyncpg==0.31.0",
     "fastapi==0.139.0",
     "pydantic==2.13.4",
     "pydantic-settings==2.14.2",
     "python-dotenv==1.2.2",
+    "redis==8.0.1",
+    "SQLAlchemy[asyncio]==2.0.51",
     "uvicorn[standard]==0.51.0",
 ]
 
@@ -50,6 +54,7 @@ ignore = []
 
 [tool.ruff.lint.isort]
 known-first-party = ["backend"]
+known-third-party = ["alembic"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -71,3 +76,6 @@ testpaths = ["backend/app/tests"]
 python_files = ["test_*.py"]
 addopts = "-ra --strict-config --strict-markers"
 asyncio_mode = "auto"
+markers = [
+    "integration: requires the Phase 2 PostgreSQL and Redis services",
+]

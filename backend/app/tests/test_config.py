@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
+from pydantic import SecretStr, ValidationError
 
 from backend.app.core.config import Environment, Settings
 
@@ -58,3 +58,33 @@ def test_invalid_api_prefix_is_rejected() -> None:
 def test_invalid_environment_value_is_rejected() -> None:
     with pytest.raises(ValidationError):
         Settings.model_validate({"environment": "invalid"})
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("database_url", "postgresql://localhost/copilot"),
+        ("database_url", "postgresql+asyncpg://localhost"),
+        ("migration_database_url", "sqlite+aiosqlite:///local.db"),
+        ("redis_url", "http://localhost:6379/0"),
+    ],
+)
+def test_settings_reject_invalid_infrastructure_urls(field: str, value: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({field: value})
+
+
+def test_infrastructure_urls_are_secret_in_settings_representation() -> None:
+    settings = Settings(
+        _env_file=None,
+        database_url=SecretStr(
+            "postgresql+asyncpg://user:database-secret@localhost/copilot"
+        ),
+        redis_url=SecretStr("redis://:redis-secret@localhost:6379/0"),
+    )
+
+    rendered = repr(settings)
+
+    assert "database-secret" not in rendered
+    assert "redis-secret" not in rendered
+    assert settings.database_dsn.endswith("@localhost/copilot")

@@ -1,1 +1,1 @@
-"""Phase 1 unit and API tests."""
+"""Application unit, API, and opt-in infrastructure integration tests."""
