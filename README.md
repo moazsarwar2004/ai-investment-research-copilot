@@ -1,5 +1,7 @@
 # AI Investment Research Co-Pilot
 
+[![CI](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml)
+
 Phase 2 adds durable local infrastructure to the production-oriented FastAPI
 foundation: PostgreSQL 17 with pgvector, Redis, async SQLAlchemy sessions,
 Alembic migrations, cache freshness primitives, and dependency-aware readiness.
@@ -84,6 +86,19 @@ python -m black --check .
 python -m mypy backend
 python -m pytest
 ```
+
+## Continuous integration
+
+GitHub Actions runs `.github/workflows/ci.yml` for every pull request to `main`,
+every push to `main`, and manual runs. The `Quality` job validates dependencies,
+the Compose file, Ruff, Black, MyPy, unit/API tests, and offline Alembic SQL. After
+that succeeds, `Infrastructure integration` starts PostgreSQL/pgvector and Redis,
+applies the real migration, runs the opt-in integration test, and removes its
+temporary containers and volumes.
+
+CI has read-only repository permissions and does not deploy the application. It
+uses the documented local-only `.env.example` values, so no GitHub secret is
+required for the Phase 2 checks.
 
 After Compose is healthy and Alembic is at `head`, run the real infrastructure
 test explicitly:
