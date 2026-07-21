@@ -19,6 +19,7 @@ dist/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+.black_cache/
 .coverage
 .coverage.*
 htmlcov/
@@ -39,4 +40,3 @@ logs/
 .codex/
 work/
 outputs/
-
