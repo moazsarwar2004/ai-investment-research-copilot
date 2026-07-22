@@ -8,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import AsyncClient
 
+from backend import __version__
 from backend.app.tests.conftest import StubHealthResource
 
 pytestmark = pytest.mark.asyncio
@@ -19,7 +20,7 @@ async def test_root_returns_service_metadata(client: AsyncClient) -> None:
     assert response.status_code == 200
     assert response.json() == {
         "service": "AI Investment Research Co-Pilot",
-        "version": "0.2.0",
+        "version": __version__,
         "environment": "testing",
         "documentation": "/docs",
         "health": "/api/v1/health",
@@ -33,7 +34,7 @@ async def test_liveness_is_minimal_and_available(client: AsyncClient) -> None:
     assert response.json() == {
         "status": "alive",
         "service": "AI Investment Research Co-Pilot",
-        "version": "0.2.0",
+        "version": __version__,
     }
 
 
@@ -130,7 +131,7 @@ async def test_versioned_health_has_utc_timestamp(client: AsyncClient) -> None:
     }
     assert payload["status"] == "healthy"
     assert payload["service"] == "AI Investment Research Co-Pilot"
-    assert payload["version"] == "0.2.0"
+    assert payload["version"] == __version__
     assert payload["environment"] == "testing"
     assert datetime.fromisoformat(payload["timestamp"]).utcoffset() is not None
     rendered = response.text.lower()
@@ -144,4 +145,4 @@ async def test_openapi_is_available_when_docs_are_enabled(
     response = await client.get("/openapi.json")
 
     assert response.status_code == 200
-    assert response.json()["info"]["version"] == "0.2.0"
+    assert response.json()["info"]["version"] == __version__

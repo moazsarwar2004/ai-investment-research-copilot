@@ -13,7 +13,11 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.responses import JSONResponse, Response
 
 from backend.app.core.config import Settings
-from backend.app.core.exceptions import ApplicationError
+from backend.app.core.exceptions import (
+    ApplicationError,
+    AuthenticationError,
+    RateLimitExceededError,
+)
 from backend.app.core.logger import get_logger
 from backend.app.core.security import build_security_headers
 
@@ -42,6 +46,7 @@ def _response(
     status_code: int,
     code: str,
     message: str,
+    extra_headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     request_id = _request_id(request)
     content: dict[str, Any] = {
@@ -52,6 +57,7 @@ def _response(
     }
     headers = build_security_headers(_settings(request))
     headers["X-Request-ID"] = request_id
+    headers.update(extra_headers or {})
     return JSONResponse(status_code=status_code, content=content, headers=headers)
 
 
@@ -59,11 +65,17 @@ async def application_exception_handler(request: Request, exc: Exception) -> Res
     """Translate an expected application failure without leaking internals."""
     if not isinstance(exc, ApplicationError):
         return await unexpected_exception_handler(request, exc)
+    extra_headers: dict[str, str] = {}
+    if isinstance(exc, AuthenticationError):
+        extra_headers["WWW-Authenticate"] = "Bearer"
+    if isinstance(exc, RateLimitExceededError):
+        extra_headers["Retry-After"] = str(exc.retry_after_seconds)
     return _response(
         request,
         status_code=exc.status_code,
         code=exc.code,
         message=exc.message,
+        extra_headers=extra_headers,
     )
 
 

@@ -8,8 +8,8 @@ project is designed for a small pilot of approximately 5-15 users and combines
 deterministic analytics, evidence retrieval, explainable risk, asynchronous
 reports, alerts, and operational monitoring in one modular system.
 
-> **Current status:** Foundation release `0.2.0`. Phases 0, 1, and 2 are
-> complete; Phase 3 (identity and authorization) is next. The repository is a
+> **Current status:** Secure-core release `0.3.0`. Phases 0 through 3 are
+> complete; Phase 4 (provider framework) is next. The repository is a
 > tested platform foundation, not yet the finished research product.
 
 This software is for research and education only. It does not execute trades,
@@ -47,10 +47,10 @@ scraped finance endpoints.
 | Phase 1 - API foundation | Complete | FastAPI application factory, validated settings, structured logging, request IDs, security middleware, errors, health endpoints, and tests |
 | Phase 2 - Durable infrastructure | Complete | PostgreSQL/pgvector, Redis, async SQLAlchemy, Alembic, cache primitives, lifecycle management, readiness policy, and real-service tests |
 | Continuous integration | Complete | Automated quality and PostgreSQL/Redis integration jobs on pushes and pull requests |
-| Phase 3 - Identity and authorization | Next | Users, sessions, token rotation, password security, RBAC, ownership, rate limits, and audit records |
+| Phase 3 - Identity and authorization | Complete | Users, sessions, Argon2id, JWT access, rotating refresh tokens, replay revocation, RBAC, ownership, rate limits, and append-only audits |
 | Phases 4-20 | Planned | Providers, research modules, analytics, ML, RAG, reports, alerts, frontend, observability, hardening, and deployment |
 
-Three of the 21 planned delivery phases are complete. Detailed exit gates are in
+Four of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -107,13 +107,20 @@ fallbacks.
   probes, and clean shutdown handling.
 - Redis cache keys, schema-versioned values, freshness metadata, soft/hard TTL,
   corrupt-entry eviction, and safe cache bypass during Redis outages.
-- Alembic migration `20260715_0001`, which enables pgvector.
+- Alembic migrations for pgvector plus users, rotating sessions, and
+  append-only audit records.
+- Argon2id password hashing, short-lived signed access tokens, one-time refresh
+  rotation, family-wide replay revocation, email verification, password reset,
+  logout, and session management.
+- Database-backed user/admin authorization, fresh-auth admin mutations,
+  owner-scoped session queries, and Redis-first authentication throttling with
+  a bounded in-process fallback.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
 
-Authentication, provider integrations, market research screens, analytics, ML,
-RAG, reports, alerts, and deployment are intentionally not implemented yet.
+Provider integrations, market research screens, analytics, ML, RAG, reports,
+alerts, and deployment are intentionally not implemented yet.
 
 ## Repository structure
 
@@ -126,6 +133,10 @@ RAG, reports, alerts, and deployment are intentionally not implemented yet.
 |   |-- cache/               Redis cache contracts
 |   |-- core/                Configuration, logging, errors, security, lifecycle
 |   |-- database/            Async SQLAlchemy engine and sessions
+|   |-- models/              Durable identity and audit ORM models
+|   |-- repositories/        Persistence-only query boundaries
+|   |-- schemas/             Strict HTTP identity contracts
+|   |-- services/            Identity use cases and authorization decisions
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
@@ -250,6 +261,8 @@ groups include:
 | `DATABASE_URL`, `MIGRATION_DATABASE_URL` | Separate runtime and migration connections |
 | `DATABASE_*` | Connection, command, probe, pool, and recycle limits |
 | `REDIS_URL`, `REDIS_KEY_PREFIX`, `REDIS_*` | Cache connection, namespace, and bounded timeouts |
+| `JWT_*`, `TOKEN_DIGEST_KEY`, token TTLs | Signed access and keyed opaque-token security |
+| `ARGON2_*`, `AUTH_RATE_LIMIT_*` | Password cost policy and authentication throttling |
 
 Infrastructure URLs use secret-aware settings fields so normal settings
 representations do not expose their credentials.
@@ -268,6 +281,7 @@ representations do not expose their credentials.
 | [`phase_0_plan.md`](docs/phase_0_plan.md) | Approved planning baseline |
 | [`phase_1_foundation.md`](docs/phase_1_foundation.md) | FastAPI foundation implementation and validation |
 | [`phase_2_infrastructure.md`](docs/phase_2_infrastructure.md) | Durable infrastructure design, commands, failure tests, and evidence |
+| [`phase_3_identity.md`](docs/phase_3_identity.md) | Identity design, security invariants, API demo, and exit evidence |
 
 ## Roadmap overview
 

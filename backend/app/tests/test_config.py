@@ -81,10 +81,38 @@ def test_infrastructure_urls_are_secret_in_settings_representation() -> None:
             "postgresql+asyncpg://user:database-secret@localhost/copilot"
         ),
         redis_url=SecretStr("redis://:redis-secret@localhost:6379/0"),
+        jwt_signing_key=SecretStr("jwt-signing-secret-that-must-not-appear"),
+        token_digest_key=SecretStr("token-digest-secret-that-must-not-appear"),
     )
 
     rendered = repr(settings)
 
     assert "database-secret" not in rendered
     assert "redis-secret" not in rendered
+    assert "jwt-signing-secret" not in rendered
+    assert "token-digest-secret" not in rendered
     assert settings.database_dsn.endswith("@localhost/copilot")
+
+
+def test_deployment_rejects_local_identity_keys_and_token_exposure() -> None:
+    with pytest.raises(ValidationError, match="AUTH_EXPOSE_TEST_TOKENS"):
+        Settings(
+            _env_file=None,
+            environment=Environment.STAGING,
+            auth_expose_test_tokens=True,
+        )
+
+    with pytest.raises(ValidationError, match="JWT_SIGNING_KEY"):
+        Settings(_env_file=None, environment=Environment.STAGING)
+
+
+def test_deployment_rejects_argon2id_below_safety_floor() -> None:
+    with pytest.raises(ValidationError, match="Argon2id"):
+        Settings(
+            _env_file=None,
+            environment=Environment.STAGING,
+            jwt_signing_key=SecretStr("staging-jwt-key-with-at-least-32-bytes"),
+            token_digest_key=SecretStr("staging-digest-key-with-at-least-32-bytes"),
+            argon2_time_cost=1,
+            argon2_memory_cost_kib=8_192,
+        )
