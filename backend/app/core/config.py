@@ -71,6 +71,25 @@ class Settings(BaseSettings):
     redis_socket_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
     redis_health_check_interval_seconds: int = Field(default=30, ge=1, le=300)
 
+    jwt_signing_key: SecretStr = SecretStr(
+        "local-jwt-signing-key-change-before-sharing-32-bytes"
+    )
+    token_digest_key: SecretStr = SecretStr(
+        "local-token-digest-key-change-before-sharing-32-bytes"
+    )
+    access_token_ttl_minutes: int = Field(default=15, ge=5, le=60)
+    refresh_token_ttl_days: int = Field(default=7, ge=1, le=30)
+    refresh_family_ttl_days: int = Field(default=30, ge=1, le=90)
+    email_verification_ttl_hours: int = Field(default=24, ge=1, le=168)
+    password_reset_ttl_minutes: int = Field(default=30, ge=5, le=120)
+    fresh_auth_ttl_minutes: int = Field(default=15, ge=5, le=60)
+    auth_rate_limit_attempts: int = Field(default=5, ge=1, le=100)
+    auth_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86_400)
+    auth_expose_test_tokens: bool = False
+    argon2_time_cost: int = Field(default=3, ge=1, le=10)
+    argon2_memory_cost_kib: int = Field(default=65_536, ge=8_192, le=262_144)
+    argon2_parallelism: int = Field(default=4, ge=1, le=16)
+
     @field_validator("app_name", "app_version")
     @classmethod
     def value_must_not_be_blank(cls, value: str) -> str:
@@ -79,6 +98,14 @@ class Settings(BaseSettings):
         if not normalized:
             raise ValueError("value must not be blank")
         return normalized
+
+    @field_validator("jwt_signing_key", "token_digest_key")
+    @classmethod
+    def validate_identity_secret(cls, value: SecretStr) -> SecretStr:
+        """Require enough entropy capacity for signing and keyed token digests."""
+        if len(value.get_secret_value()) < 32:
+            raise ValueError("identity secrets must contain at least 32 characters")
+        return value
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -192,6 +219,25 @@ class Settings(BaseSettings):
             raise ValueError("DEBUG must be false in production")
         if self.enable_hsts and self.environment is not Environment.PRODUCTION:
             raise ValueError("HSTS may only be enabled in production")
+        if self.refresh_family_ttl_days < self.refresh_token_ttl_days:
+            raise ValueError(
+                "REFRESH_FAMILY_TTL_DAYS must be at least REFRESH_TOKEN_TTL_DAYS"
+            )
+        if self.jwt_key == self.digest_key:
+            raise ValueError("JWT_SIGNING_KEY and TOKEN_DIGEST_KEY must be independent")
+        if self.environment in {Environment.STAGING, Environment.PRODUCTION}:
+            if self.auth_expose_test_tokens:
+                raise ValueError(
+                    "AUTH_EXPOSE_TEST_TOKENS must be false in staging/production"
+                )
+            if self.jwt_signing_key.get_secret_value().startswith("local-"):
+                raise ValueError("JWT_SIGNING_KEY must be replaced before deployment")
+            if self.token_digest_key.get_secret_value().startswith("local-"):
+                raise ValueError("TOKEN_DIGEST_KEY must be replaced before deployment")
+            if self.argon2_time_cost < 2 or self.argon2_memory_cost_kib < 32_768:
+                raise ValueError(
+                    "staging/production Argon2id settings are below the safety floor"
+                )
         return self
 
     @property
@@ -215,6 +261,16 @@ class Settings(BaseSettings):
     def redis_dsn(self) -> str:
         """Return the Redis URL only at the connection boundary."""
         return self.redis_url.get_secret_value()
+
+    @property
+    def jwt_key(self) -> str:
+        """Return the signing secret only at the token boundary."""
+        return self.jwt_signing_key.get_secret_value()
+
+    @property
+    def digest_key(self) -> str:
+        """Return the token-digest secret only at the hashing boundary."""
+        return self.token_digest_key.get_secret_value()
 
 
 @lru_cache(maxsize=1)

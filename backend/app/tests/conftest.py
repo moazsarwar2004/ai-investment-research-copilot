@@ -37,6 +37,9 @@ def test_settings() -> Settings:
         debug=False,
         log_format=LogFormat.JSON,
         allowed_origins="http://localhost:8501",
+        argon2_time_cost=1,
+        argon2_memory_cost_kib=8_192,
+        argon2_parallelism=1,
     )
 
 

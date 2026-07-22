@@ -287,6 +287,36 @@ class RedisCache:
             )
             return False
 
+    async def consume_rate_limit(
+        self, key: str, *, limit: int, window_seconds: int
+    ) -> tuple[bool, int] | None:
+        """Atomically consume a fixed-window budget, or defer to local fallback."""
+        script = """
+        local count = redis.call('INCR', KEYS[1])
+        if count == 1 then
+            redis.call('EXPIRE', KEYS[1], ARGV[1])
+        end
+        local ttl = redis.call('TTL', KEYS[1])
+        return {count, ttl}
+        """
+        try:
+            result = await self._client.eval(
+                script,
+                1,
+                self._qualified_key(f"rate:{key}"),
+                window_seconds,
+            )
+            if not isinstance(result, list | tuple) or len(result) != 2:
+                return None
+            count, ttl = int(result[0]), int(result[1])
+            return count <= limit, max(1, ttl)
+        except (RedisError, OSError, TimeoutError, TypeError, ValueError) as error:
+            logger.warning(
+                "rate_limit_redis_bypassed",
+                extra={"exception_type": type(error).__name__},
+            )
+            return None
+
     async def _best_effort_delete(self, qualified_key: str) -> None:
         try:
             await self._client.delete(qualified_key)

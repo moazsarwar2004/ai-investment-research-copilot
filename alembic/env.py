@@ -12,6 +12,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from backend.app.core.config import Settings
 from backend.app.database.base import Base
+from backend.app.models import AuditLog, User, UserSession
+
+_MODELS = (AuditLog, User, UserSession)
 
 config = context.config
 

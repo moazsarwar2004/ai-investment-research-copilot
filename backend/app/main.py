@@ -9,9 +9,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.health_routes import health_router, probe_router, root_router
+from backend.app.api.identity_routes import identity_router
+from backend.app.cache import RedisCache
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.error_handlers import register_exception_handlers
+from backend.app.core.identity_security import IdentitySecurity
 from backend.app.core.logger import configure_logging, get_logger
+from backend.app.core.rate_limits import AuthRateLimiter
 from backend.app.core.resources import ApplicationResources, create_resources
 from backend.app.database import DatabaseManager
 from backend.app.middleware.logging_middleware import RequestLoggingMiddleware
@@ -79,6 +83,15 @@ def create_application(
         if isinstance(resolved_resources.database, DatabaseManager)
         else None
     )
+    redis_cache = (
+        resolved_resources.cache
+        if isinstance(resolved_resources.cache, RedisCache)
+        else None
+    )
+    application.state.identity_security = IdentitySecurity(resolved_settings)
+    application.state.auth_rate_limiter = AuthRateLimiter(
+        resolved_settings, redis_cache
+    )
     application.state.started = False
 
     register_exception_handlers(application)
@@ -109,6 +122,10 @@ def create_application(
     application.include_router(probe_router)
     application.include_router(
         health_router,
+        prefix=resolved_settings.api_v1_prefix,
+    )
+    application.include_router(
+        identity_router,
         prefix=resolved_settings.api_v1_prefix,
     )
     return application

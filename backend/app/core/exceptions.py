@@ -54,3 +54,52 @@ class ServiceUnavailableError(ApplicationError):
             message=message,
             status_code=HTTPStatus.SERVICE_UNAVAILABLE,
         )
+
+
+class AuthenticationError(ApplicationError):
+    """Raised when credentials or authentication tokens cannot be accepted."""
+
+    def __init__(self, message: str = "Authentication is required.") -> None:
+        super().__init__(
+            code="AUTHENTICATION_REQUIRED",
+            message=message,
+            status_code=HTTPStatus.UNAUTHORIZED,
+        )
+
+
+class PermissionDeniedError(ApplicationError):
+    """Raised when an authenticated principal lacks the required permission."""
+
+    def __init__(
+        self, message: str = "You do not have permission for this action."
+    ) -> None:
+        super().__init__(
+            code="PERMISSION_DENIED",
+            message=message,
+            status_code=HTTPStatus.FORBIDDEN,
+        )
+
+
+class ConflictError(ApplicationError):
+    """Raised when a mutation conflicts with existing state."""
+
+    def __init__(
+        self, message: str = "The requested change conflicts with existing state."
+    ) -> None:
+        super().__init__(
+            code="CONFLICT",
+            message=message,
+            status_code=HTTPStatus.CONFLICT,
+        )
+
+
+class RateLimitExceededError(ApplicationError):
+    """Raised when an operation exceeds its configured request budget."""
+
+    def __init__(self, retry_after_seconds: int) -> None:
+        super().__init__(
+            code="RATE_LIMIT_EXCEEDED",
+            message="Too many attempts. Try again later.",
+            status_code=HTTPStatus.TOO_MANY_REQUESTS,
+        )
+        self.retry_after_seconds = max(1, retry_after_seconds)
