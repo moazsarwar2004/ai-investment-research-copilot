@@ -28,6 +28,16 @@ class StubHealthResource:
         self.closed = True
 
 
+class StubCloseResource:
+    """Lifecycle-only test double for the provider HTTP pool."""
+
+    def __init__(self) -> None:
+        self.closed = False
+
+    async def close(self) -> None:
+        self.closed = True
+
+
 @pytest.fixture
 def test_settings() -> Settings:
     """Return deterministic settings without reading a developer's .env file."""
@@ -56,12 +66,23 @@ def cache_resource() -> StubHealthResource:
 
 
 @pytest.fixture
+def provider_http_resource() -> StubCloseResource:
+    """Return a provider HTTP lifecycle test double."""
+    return StubCloseResource()
+
+
+@pytest.fixture
 def resources(
     database_resource: StubHealthResource,
     cache_resource: StubHealthResource,
+    provider_http_resource: StubCloseResource,
 ) -> ApplicationResources:
     """Inject deterministic infrastructure into the application factory."""
-    return ApplicationResources(database=database_resource, cache=cache_resource)
+    return ApplicationResources(
+        database=database_resource,
+        cache=cache_resource,
+        provider_http=provider_http_resource,
+    )
 
 
 @pytest.fixture

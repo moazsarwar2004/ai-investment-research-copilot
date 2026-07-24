@@ -23,6 +23,7 @@ from backend.app.middleware.request_id_middleware import RequestIDMiddleware
 from backend.app.middleware.security_headers_middleware import (
     SecurityHeadersMiddleware,
 )
+from backend.app.providers import ProviderHttpClient
 
 logger = get_logger(__name__)
 
@@ -91,6 +92,11 @@ def create_application(
     application.state.identity_security = IdentitySecurity(resolved_settings)
     application.state.auth_rate_limiter = AuthRateLimiter(
         resolved_settings, redis_cache
+    )
+    application.state.provider_http_client = (
+        resolved_resources.provider_http
+        if isinstance(resolved_resources.provider_http, ProviderHttpClient)
+        else None
     )
     application.state.started = False
 

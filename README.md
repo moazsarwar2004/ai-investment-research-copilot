@@ -3,13 +3,16 @@
 [![CI](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml/badge.svg)](https://github.com/moazsarwar2004/ai-investment-research-copilot/actions/workflows/ci.yml)
 
 AI Investment Research Co-Pilot is a source-backed research and education
-platform for stocks, cryptocurrency, Binance markets, and SEC filings. The project is designed as a production-ready platform for real-world use, capable of supporting actual users, scaling as adoption grows and combines
-deterministic analytics, evidence retrieval, explainable risk, asynchronous
-reports, alerts, and operational monitoring in one modular system.
+platform for stocks, cryptocurrency, Binance markets, and SEC filings. It is
+being developed as a production-oriented modular monolith for a small multi-user
+pilot, with deterministic analytics, evidence retrieval, explainable risk,
+asynchronous reports, alerts, and operational monitoring designed to evolve
+through explicit release gates.
 
-> **Current status:** Secure-core release `0.3.0`. Phases 0 through 3 are
-> complete; Phase 4 (provider framework) is next. The repository is a
-> tested platform foundation, not yet the finished research product.
+> **Current release:** `0.4.0` — secure platform core. Phases 0–4 are complete,
+> and Phase 5 (Binance Spot MVP) is next. This repository is a tested
+> foundation; market-data products and the end-user research interface are not
+> yet available.
 
 This software is for research and education only. It does not execute trades,
 store exchange trading keys, provide personalized financial advice, or promise
@@ -47,9 +50,10 @@ scraped finance endpoints.
 | Phase 2 - Durable infrastructure | Complete | PostgreSQL/pgvector, Redis, async SQLAlchemy, Alembic, cache primitives, lifecycle management, readiness policy, and real-service tests |
 | Continuous integration | Complete | Automated quality and PostgreSQL/Redis integration jobs on pushes and pull requests |
 | Phase 3 - Identity and authorization | Complete | Users, sessions, Argon2id, JWT access, rotating refresh tokens, replay revocation, RBAC, ownership, rate limits, and append-only audits |
-| Phases 4-20 | Planned | Providers, research modules, analytics, ML, RAG, reports, alerts, frontend, observability, hardening, and deployment |
+| Phase 4 - Provider framework | Complete | Async HTTP, strict adapters, normalization/provenance, quotas, retry/backoff, circuits, locks, and stale fallback |
+| Phases 5-20 | Planned | Research modules, analytics, ML, RAG, reports, alerts, frontend, observability, hardening, and deployment |
 
-Four of the 21 planned delivery phases are complete. Detailed exit gates are in
+Five of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -63,7 +67,8 @@ flowchart LR
     Client["API clients now<br/>Streamlit UI planned"] --> API["FastAPI backend<br/>implemented"]
     API --> PostgreSQL[("PostgreSQL 17 + pgvector<br/>implemented")]
     API --> Redis[("Redis cache<br/>implemented")]
-    API -. "planned" .-> Providers["Market + SEC providers"]
+    API --> ProviderFramework["Provider resilience framework<br/>implemented"]
+    ProviderFramework -. "concrete adapters planned" .-> Providers["Market + SEC providers"]
     Workers["Celery workers + scheduler<br/>planned"] -.-> PostgreSQL
     Workers -.-> Redis
     Workers -. "planned" .-> Ollama["Local embeddings + Ollama"]
@@ -89,10 +94,11 @@ fallbacks.
 | Automation | GitHub Actions | Implemented |
 | Frontend | Streamlit | Planned |
 | Background work | Celery workers and scheduler | Planned |
-| Research and AI | Provider adapters, deterministic analytics, scikit-learn, pgvector/BM25 RAG, Ollama | Planned by phase |
+| Provider resilience | HTTPX, strict Pydantic adapters, quotas, retries, circuits, cache locks | Implemented |
+| Research and AI | Concrete data adapters, deterministic analytics, scikit-learn, pgvector/BM25 RAG, Ollama | Planned by phase |
 | Production operations | Caddy, OpenTelemetry, Grafana Cloud, uptime checks, encrypted backups | Planned by phase |
 
-## Implemented today
+## Implemented in v0.4.0
 
 - Strict FastAPI application configuration with development, testing, staging,
   and production modes.
@@ -114,12 +120,17 @@ fallbacks.
 - Database-backed user/admin authorization, fresh-auth admin mutations,
   owner-scoped session queries, and Redis-first authentication throttling with
   a bounded in-process fallback.
+- Lifecycle-owned async provider HTTP client with exact HTTPS host allowlists,
+  bounded deadlines/retries, `Retry-After`, response-size limits, and safe URL
+  provenance.
+- Provider-neutral adapter, normalization, freshness, warning, quota, circuit
+  breaker, token-lock, single-flight, and stale-cache fallback contracts.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
 
-Provider integrations, market research screens, analytics, ML, RAG, reports,
-alerts, and deployment are intentionally not implemented yet.
+Concrete provider integrations, market research screens, analytics, ML, RAG,
+reports, alerts, and deployment are intentionally not implemented yet.
 
 ## Repository structure
 
@@ -136,6 +147,7 @@ alerts, and deployment are intentionally not implemented yet.
 |   |-- repositories/        Persistence-only query boundaries
 |   |-- schemas/             Strict HTTP identity contracts
 |   |-- services/            Identity use cases and authorization decisions
+|   |-- providers/           HTTP, adapters, provenance, quotas, circuits, fallback
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
@@ -209,7 +221,8 @@ PostgreSQL is unavailable, while a Redis-only failure remains HTTP 200 with
 
 ## Testing
 
-Run the fast local quality gates:
+The default test suite is deterministic and does not call live market-data
+providers. Run the fast local quality gates:
 
 ```powershell
 python -m ruff check .
@@ -221,8 +234,21 @@ python -m alembic upgrade head --sql
 docker compose config --quiet
 ```
 
+Run the focused Phase 4 provider-resilience tests:
+
+```powershell
+python -m pytest -q `
+  backend/app/tests/test_provider_http.py `
+  backend/app/tests/test_provider_controls.py `
+  backend/app/tests/test_provider_manager.py
+```
+
+These tests cover timeouts, `429` and `Retry-After`, schema drift, stale cache
+fallback, circuit breaking, quota reservation, provenance, outbound host
+controls, and single-flight refreshes without requiring a live provider.
+
 After Compose is healthy and the migration is applied, run the real
-infrastructure test:
+PostgreSQL/Redis tests:
 
 ```powershell
 $env:RUN_INFRASTRUCTURE_TESTS = '1'
@@ -230,9 +256,10 @@ python -m pytest -m integration
 Remove-Item Env:RUN_INFRASTRUCTURE_TESTS
 ```
 
-The integration test verifies PostgreSQL and Redis connectivity, the pgvector
-extension, Alembic revision `20260715_0001`, and a Redis write/read/delete round
-trip.
+The two integration tests verify PostgreSQL and Redis connectivity, pgvector,
+the current Alembic revision, Redis round trips, token rotation and replay
+revocation, rate limiting, RBAC, resource ownership, and append-only audit
+enforcement.
 
 ## Continuous integration
 
@@ -262,6 +289,7 @@ groups include:
 | `REDIS_URL`, `REDIS_KEY_PREFIX`, `REDIS_*` | Cache connection, namespace, and bounded timeouts |
 | `JWT_*`, `TOKEN_DIGEST_KEY`, token TTLs | Signed access and keyed opaque-token security |
 | `ARGON2_*`, `AUTH_RATE_LIMIT_*` | Password cost policy and authentication throttling |
+| `PROVIDER_*` | Outbound timeouts/deadline, retry, response, circuit, and lock limits |
 
 Infrastructure URLs use secret-aware settings fields so normal settings
 representations do not expose their credentials.
@@ -281,6 +309,7 @@ representations do not expose their credentials.
 | [`phase_1_foundation.md`](docs/phase_1_foundation.md) | FastAPI foundation implementation and validation |
 | [`phase_2_infrastructure.md`](docs/phase_2_infrastructure.md) | Durable infrastructure design, commands, failure tests, and evidence |
 | [`phase_3_identity.md`](docs/phase_3_identity.md) | Identity design, security invariants, API demo, and exit evidence |
+| [`phase_4_provider_framework.md`](docs/phase_4_provider_framework.md) | Provider contracts, resilience controls, mock-only tests, and exit evidence |
 
 ## Roadmap overview
 
