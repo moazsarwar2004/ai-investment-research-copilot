@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from httpx import AsyncClient
 
 from backend import __version__
-from backend.app.tests.conftest import StubHealthResource
+from backend.app.tests.conftest import StubCloseResource, StubHealthResource
 
 pytestmark = pytest.mark.asyncio
 
@@ -105,6 +105,7 @@ async def test_lifespan_closes_infrastructure_resources(
     application: FastAPI,
     database_resource: StubHealthResource,
     cache_resource: StubHealthResource,
+    provider_http_resource: StubCloseResource,
 ) -> None:
     async with application.router.lifespan_context(application):
         started_during_lifespan = application.state.started
@@ -115,6 +116,7 @@ async def test_lifespan_closes_infrastructure_resources(
     assert started_after_lifespan is False
     assert database_resource.closed is True
     assert cache_resource.closed is True
+    assert provider_http_resource.closed is True
 
 
 async def test_versioned_health_has_utc_timestamp(client: AsyncClient) -> None:

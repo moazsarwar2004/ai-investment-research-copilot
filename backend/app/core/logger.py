@@ -21,6 +21,12 @@ _SAFE_EXTRA_FIELDS = (
     "version",
     "dependency",
     "exception_type",
+    "provider",
+    "operation",
+    "attempt",
+    "retry_count",
+    "cache_status",
+    "circuit_state",
 )
 
 

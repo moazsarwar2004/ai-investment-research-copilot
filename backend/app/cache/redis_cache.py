@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import secrets
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
@@ -33,6 +34,22 @@ class CacheStatus(StrEnum):
     HIT = "hit"
     STALE = "stale"
     BYPASS = "bypass"
+
+
+class CacheLockStatus(StrEnum):
+    """Outcome of a best-effort distributed cache-lock attempt."""
+
+    ACQUIRED = "acquired"
+    BUSY = "busy"
+    BYPASS = "bypass"
+
+
+@dataclass(frozen=True, slots=True)
+class CacheLock:
+    """Opaque lock ownership returned by RedisCache."""
+
+    status: CacheLockStatus
+    token: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -283,6 +300,53 @@ class RedisCache:
         except (RedisError, OSError, TimeoutError) as error:
             logger.warning(
                 "cache_delete_bypassed",
+                extra={"exception_type": type(error).__name__},
+            )
+            return False
+
+    async def acquire_lock(self, key: str, *, ttl_seconds: int) -> CacheLock:
+        """Acquire a token-owned distributed lock without blocking the caller."""
+        if ttl_seconds <= 0:
+            raise ValueError("lock TTL must be positive")
+        token = secrets.token_urlsafe(24)
+        try:
+            acquired = await self._client.set(
+                self._qualified_key(f"lock:{key}"),
+                token,
+                ex=ttl_seconds,
+                nx=True,
+            )
+        except (RedisError, OSError, TimeoutError) as error:
+            logger.warning(
+                "cache_lock_bypassed",
+                extra={"exception_type": type(error).__name__},
+            )
+            return CacheLock(status=CacheLockStatus.BYPASS)
+        if not acquired:
+            return CacheLock(status=CacheLockStatus.BUSY)
+        return CacheLock(status=CacheLockStatus.ACQUIRED, token=token)
+
+    async def release_lock(self, key: str, token: str) -> bool:
+        """Release a distributed lock only when the ownership token matches."""
+        if not token:
+            return False
+        script = """
+        if redis.call('GET', KEYS[1]) == ARGV[1] then
+            return redis.call('DEL', KEYS[1])
+        end
+        return 0
+        """
+        try:
+            released = await self._client.eval(
+                script,
+                1,
+                self._qualified_key(f"lock:{key}"),
+                token,
+            )
+            return bool(released)
+        except (RedisError, OSError, TimeoutError, TypeError, ValueError) as error:
+            logger.warning(
+                "cache_lock_release_bypassed",
                 extra={"exception_type": type(error).__name__},
             )
             return False

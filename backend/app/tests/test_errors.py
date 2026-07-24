@@ -9,6 +9,7 @@ from httpx import ASGITransport, AsyncClient
 from pytest_asyncio import fixture as async_fixture
 
 from backend.app.core.exceptions import ResourceNotFoundError
+from backend.app.providers import ProviderUnavailableError
 
 
 @async_fixture
@@ -20,6 +21,10 @@ async def error_client(application: FastAPI) -> AsyncGenerator[AsyncClient, None
     @application.get("/_test/unexpected")
     async def unexpected_error() -> None:
         raise RuntimeError("PRIVATE_MARKER database-password=/server/secret")
+
+    @application.get("/_test/provider-unavailable")
+    async def provider_unavailable() -> None:
+        raise ProviderUnavailableError(cause_code="provider_timeout")
 
     async with application.router.lifespan_context(application):
         transport = ASGITransport(app=application, raise_app_exceptions=False)
@@ -65,6 +70,21 @@ async def test_unexpected_error_never_leaks_exception_details(
     assert "database-password" not in rendered
     assert "RuntimeError" not in rendered
     assert "Traceback" not in rendered
+
+
+async def test_provider_unavailable_is_a_typed_safe_503(
+    error_client: AsyncClient,
+) -> None:
+    response = await error_client.get("/_test/provider-unavailable")
+
+    assert response.status_code == 503
+    assert response.json()["errors"] == [
+        {
+            "code": "provider_unavailable",
+            "message": "Provider data is temporarily unavailable.",
+        }
+    ]
+    assert "provider_timeout" not in response.text
 
 
 async def test_unknown_route_uses_standard_contract(client: AsyncClient) -> None:

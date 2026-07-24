@@ -116,3 +116,33 @@ def test_deployment_rejects_argon2id_below_safety_floor() -> None:
             argon2_time_cost=1,
             argon2_memory_cost_kib=8_192,
         )
+
+
+def test_provider_retry_and_deadline_relationships_are_validated() -> None:
+    with pytest.raises(ValidationError, match="PROVIDER_RETRY_MAX_SECONDS"):
+        Settings(
+            _env_file=None,
+            provider_retry_base_seconds=2,
+            provider_retry_max_seconds=1,
+        )
+
+    with pytest.raises(ValidationError, match="PROVIDER_TOTAL_DEADLINE_SECONDS"):
+        Settings(
+            _env_file=None,
+            provider_read_timeout_seconds=6,
+            provider_total_deadline_seconds=5,
+        )
+
+    with pytest.raises(ValidationError, match="PROVIDER_CACHE_LOCK_WAIT_SECONDS"):
+        Settings(
+            _env_file=None,
+            provider_total_deadline_seconds=5,
+            provider_cache_lock_wait_seconds=6,
+        )
+
+    with pytest.raises(ValidationError, match="PROVIDER_CACHE_LOCK_TTL_SECONDS"):
+        Settings(
+            _env_file=None,
+            provider_total_deadline_seconds=5,
+            provider_cache_lock_ttl_seconds=4,
+        )

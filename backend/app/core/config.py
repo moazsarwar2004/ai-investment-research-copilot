@@ -71,6 +71,26 @@ class Settings(BaseSettings):
     redis_socket_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
     redis_health_check_interval_seconds: int = Field(default=30, ge=1, le=300)
 
+    provider_connect_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
+    provider_read_timeout_seconds: float = Field(default=3.0, gt=0, le=30)
+    provider_write_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
+    provider_pool_timeout_seconds: float = Field(default=1.0, gt=0, le=10)
+    provider_total_deadline_seconds: float = Field(default=5.0, gt=0, le=60)
+    provider_max_attempts: int = Field(default=3, ge=1, le=5)
+    provider_retry_base_seconds: float = Field(default=0.1, ge=0, le=5)
+    provider_retry_max_seconds: float = Field(default=1.0, ge=0, le=10)
+    provider_retry_after_max_seconds: float = Field(default=30.0, gt=0, le=300)
+    provider_response_max_bytes: int = Field(
+        default=2 * 1024 * 1024,
+        ge=1024,
+        le=20 * 1024 * 1024,
+    )
+    provider_circuit_failure_threshold: int = Field(default=3, ge=1, le=20)
+    provider_circuit_recovery_seconds: float = Field(default=30.0, gt=0, le=600)
+    provider_cache_lock_ttl_seconds: int = Field(default=10, ge=1, le=60)
+    provider_cache_lock_wait_seconds: float = Field(default=1.0, ge=0, le=10)
+    provider_cache_lock_poll_seconds: float = Field(default=0.05, gt=0, le=1)
+
     jwt_signing_key: SecretStr = SecretStr(
         "local-jwt-signing-key-change-before-sharing-32-bytes"
     )
@@ -225,6 +245,28 @@ class Settings(BaseSettings):
             )
         if self.jwt_key == self.digest_key:
             raise ValueError("JWT_SIGNING_KEY and TOKEN_DIGEST_KEY must be independent")
+        if self.provider_retry_max_seconds < self.provider_retry_base_seconds:
+            raise ValueError(
+                "PROVIDER_RETRY_MAX_SECONDS must be at least "
+                "PROVIDER_RETRY_BASE_SECONDS"
+            )
+        if self.provider_total_deadline_seconds < max(
+            self.provider_connect_timeout_seconds,
+            self.provider_read_timeout_seconds,
+            self.provider_write_timeout_seconds,
+            self.provider_pool_timeout_seconds,
+        ):
+            raise ValueError(
+                "PROVIDER_TOTAL_DEADLINE_SECONDS must cover each provider timeout"
+            )
+        if self.provider_cache_lock_wait_seconds > self.provider_total_deadline_seconds:
+            raise ValueError(
+                "PROVIDER_CACHE_LOCK_WAIT_SECONDS must not exceed the provider deadline"
+            )
+        if self.provider_cache_lock_ttl_seconds < self.provider_total_deadline_seconds:
+            raise ValueError(
+                "PROVIDER_CACHE_LOCK_TTL_SECONDS must cover the provider deadline"
+            )
         if self.environment in {Environment.STAGING, Environment.PRODUCTION}:
             if self.auth_expose_test_tokens:
                 raise ValueError(
