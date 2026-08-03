@@ -9,10 +9,9 @@ pilot, with deterministic analytics, evidence retrieval, explainable risk,
 asynchronous reports, alerts, and operational monitoring designed to evolve
 through explicit release gates.
 
-> **Current release:** `0.4.0` — secure platform core. Phases 0–4 are complete,
-> and Phase 5 (Binance Spot MVP) is next. This repository is a tested
-> foundation; market-data products and the end-user research interface are not
-> yet available.
+> **Current release:** `0.5.0` — Binance Spot research MVP. Phases 0–5 are
+> complete, and Phase 6 (general crypto) is next. Public Spot market data,
+> deterministic analytics, and the first Streamlit research page are available.
 
 This software is for research and education only. It does not execute trades,
 store exchange trading keys, provide personalized financial advice, or promise
@@ -51,9 +50,10 @@ scraped finance endpoints.
 | Continuous integration | Complete | Automated quality and PostgreSQL/Redis integration jobs on pushes and pull requests |
 | Phase 3 - Identity and authorization | Complete | Users, sessions, Argon2id, JWT access, rotating refresh tokens, replay revocation, RBAC, ownership, rate limits, and append-only audits |
 | Phase 4 - Provider framework | Complete | Async HTTP, strict adapters, normalization/provenance, quotas, retry/backoff, circuits, locks, and stale fallback |
-| Phases 5-20 | Planned | Research modules, analytics, ML, RAG, reports, alerts, frontend, observability, hardening, and deployment |
+| Phase 5 - Binance Spot MVP | Complete | Public symbols, ticker, candles, depth, trades, deterministic analytics/risk, and first Streamlit research page |
+| Phases 6-20 | Planned | Remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
 
-Five of the 21 planned delivery phases are complete. Detailed exit gates are in
+Six of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -64,11 +64,12 @@ phases are implemented.
 
 ```mermaid
 flowchart LR
-    Client["API clients now<br/>Streamlit UI planned"] --> API["FastAPI backend<br/>implemented"]
+    Client["API clients + first<br/>Streamlit research page"] --> API["FastAPI backend<br/>implemented"]
     API --> PostgreSQL[("PostgreSQL 17 + pgvector<br/>implemented")]
     API --> Redis[("Redis cache<br/>implemented")]
     API --> ProviderFramework["Provider resilience framework<br/>implemented"]
-    ProviderFramework -. "concrete adapters planned" .-> Providers["Market + SEC providers"]
+    ProviderFramework --> Binance["Binance Spot public API<br/>implemented"]
+    ProviderFramework -. "later adapters" .-> Providers["Crypto + stock + SEC providers"]
     Workers["Celery workers + scheduler<br/>planned"] -.-> PostgreSQL
     Workers -.-> Redis
     Workers -. "planned" .-> Ollama["Local embeddings + Ollama"]
@@ -92,13 +93,13 @@ fallbacks.
 | Local infrastructure | Docker Desktop and Docker Compose | Implemented |
 | Testing and quality | pytest, pytest-asyncio, Ruff, Black, MyPy | Implemented |
 | Automation | GitHub Actions | Implemented |
-| Frontend | Streamlit | Planned |
+| Frontend | Streamlit | First Binance Spot research page implemented |
 | Background work | Celery workers and scheduler | Planned |
 | Provider resilience | HTTPX, strict Pydantic adapters, quotas, retries, circuits, cache locks | Implemented |
-| Research and AI | Concrete data adapters, deterministic analytics, scikit-learn, pgvector/BM25 RAG, Ollama | Planned by phase |
+| Research and AI | Binance Spot adapters and deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
 | Production operations | Caddy, OpenTelemetry, Grafana Cloud, uptime checks, encrypted backups | Planned by phase |
 
-## Implemented in v0.4.0
+## Implemented through v0.5.0
 
 - Strict FastAPI application configuration with development, testing, staging,
   and production modes.
@@ -125,12 +126,24 @@ fallbacks.
   provenance.
 - Provider-neutral adapter, normalization, freshness, warning, quota, circuit
   breaker, token-lock, single-flight, and stale-cache fallback contracts.
+- Public, market-data-only Binance Spot adapters for exchange metadata, 24-hour
+  ticker, UTC candles, bounded order-book depth, and bounded recent trades.
+- Pair validation from cached exchange metadata, exact endpoint weights,
+  authoritative usage-header reconciliation, and a conservative local
+  per-minute weight budget with interactive reserve.
+- Deterministic SMA/EMA/RSI/ATR/volatility/trend analytics, spread/depth/
+  imbalance/slippage analytics, trade pressure/large-trade anomalies, and an
+  explainable Spot risk score with missing-input weight renormalization.
+- Eight read-only Binance Spot API routes, including partial-tolerant aggregate
+  research with freshness, provenance, limitations, and a research disclaimer.
+- First Streamlit research page with loading, empty, error, partial, and stale
+  states plus price, technical, liquidity, trade, and risk views.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
 
-Concrete provider integrations, market research screens, analytics, ML, RAG,
-reports, alerts, and deployment are intentionally not implemented yet.
+General crypto, stock/SEC research, Futures, later analytics, ML, RAG, reports,
+alerts, the complete frontend, and deployment remain gated to later phases.
 
 ## Repository structure
 
@@ -139,6 +152,7 @@ reports, alerts, and deployment are intentionally not implemented yet.
 |-- .github/workflows/       GitHub Actions CI
 |-- alembic/                 Database migration environment and revisions
 |-- backend/app/
+|   |-- analytics/           Deterministic indicators, liquidity, anomaly, and risk calculations
 |   |-- api/                 HTTP routes
 |   |-- cache/               Redis cache contracts
 |   |-- core/                Configuration, logging, errors, security, lifecycle
@@ -150,6 +164,7 @@ reports, alerts, and deployment are intentionally not implemented yet.
 |   |-- providers/           HTTP, adapters, provenance, quotas, circuits, fallback
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
+|-- frontend/                Streamlit Binance Spot research page and API client
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
 |-- infrastructure/          Container initialization scripts
 |-- compose.yaml             Local PostgreSQL/pgvector and Redis services
@@ -215,6 +230,18 @@ Open:
 - Readiness: `http://127.0.0.1:8000/readyz`
 - Versioned health: `http://127.0.0.1:8000/api/v1/health`
 
+### 4. Run the Binance Spot research page
+
+Keep the API running, then open a second PowerShell terminal:
+
+```powershell
+.\.venv\Scripts\Activate.ps1
+python -m streamlit run frontend/app.py
+```
+
+Open `http://127.0.0.1:8501`. The page calls only the local API; the API uses
+Binance's public market-data-only host and never accepts an exchange key.
+
 `/livez` never calls external dependencies. `/readyz` returns HTTP 503 when
 PostgreSQL is unavailable, while a Redis-only failure remains HTTP 200 with
 `redis: degraded` because cache acceleration is disposable.
@@ -246,6 +273,21 @@ python -m pytest -q `
 These tests cover timeouts, `429` and `Retry-After`, schema drift, stale cache
 fallback, circuit breaking, quota reservation, provenance, outbound host
 controls, and single-flight refreshes without requiring a live provider.
+
+Run the focused Phase 5 Binance Spot tests:
+
+```powershell
+python -m pytest -q `
+  backend/app/tests/test_binance_spot_provider.py `
+  backend/app/tests/test_binance_spot_analytics.py `
+  backend/app/tests/test_binance_spot_service.py `
+  backend/app/tests/test_binance_spot_api.py `
+  backend/app/tests/test_frontend_state.py
+```
+
+All provider responses are recorded-shape fixtures. Normal tests never call
+Binance or require an API key. The frontend test also renders the initial
+Streamlit page and asserts that it contains no script exception.
 
 After Compose is healthy and the migration is applied, run the real
 PostgreSQL/Redis tests:
@@ -290,6 +332,7 @@ groups include:
 | `JWT_*`, `TOKEN_DIGEST_KEY`, token TTLs | Signed access and keyed opaque-token security |
 | `ARGON2_*`, `AUTH_RATE_LIMIT_*` | Password cost policy and authentication throttling |
 | `PROVIDER_*` | Outbound timeouts/deadline, retry, response, circuit, and lock limits |
+| `BINANCE_SPOT_*` | Feature flag, pinned public host, local weight budget, and interactive reserve |
 
 Infrastructure URLs use secret-aware settings fields so normal settings
 representations do not expose their credentials.
@@ -310,6 +353,7 @@ representations do not expose their credentials.
 | [`phase_2_infrastructure.md`](docs/phase_2_infrastructure.md) | Durable infrastructure design, commands, failure tests, and evidence |
 | [`phase_3_identity.md`](docs/phase_3_identity.md) | Identity design, security invariants, API demo, and exit evidence |
 | [`phase_4_provider_framework.md`](docs/phase_4_provider_framework.md) | Provider contracts, resilience controls, mock-only tests, and exit evidence |
+| [`phase_5_binance_spot.md`](docs/phase_5_binance_spot.md) | Spot adapters, analytics methodology, UI states, controls, demos, and exit evidence |
 
 ## Roadmap overview
 

@@ -94,6 +94,10 @@ Question bodies allow ticker/CIK, form types, date bounds and comparison mode. T
 
 ## 7. Binance Spot
 
+Implemented in Phase 5. All routes are public, read-only, served below the
+versioned `/api/v1` prefix, and retain Binance provenance/freshness metadata.
+Symbols are checked against cached exchange metadata before a market request.
+
 | Method | Route | Access | Purpose |
 |---|---|---|---|
 | GET | `/binance/spot/symbols` | Guest limited | Cached exchange info and valid pairs |
@@ -106,6 +110,16 @@ Question bodies allow ticker/CIK, form types, date bounds and comparison mode. T
 | GET | `/binance/spot/{symbol}/research` | Guest limited | Aggregated partial UI response |
 
 No method under this namespace creates or signs an exchange order.
+
+Product bounds are deliberately smaller than the upstream maxima:
+
+- Candle interval: `1m`, `5m`, `15m`, `1h`, `4h`, `1d`, or `1w`; limit
+  50–500.
+- Order-book limit: 20, 50, or 100, keeping the upstream request weight at 5.
+- Recent-trades limit: 1–200.
+- Slippage notional: positive and no more than 1,000,000 quote-asset units.
+- Aggregate research may be `partial: true`; unavailable components are `null`
+  and named in stable warnings while successful components remain usable.
 
 ## 8. Binance Futures
 
@@ -186,4 +200,3 @@ Exact values are configuration and load-test outputs, but the policy starts with
 | Admin mutations | N/A | 30 / hour | Admin only, audit logged |
 
 Provider quota managers may impose stricter limits. A `429` response includes a safe `Retry-After` value.
-

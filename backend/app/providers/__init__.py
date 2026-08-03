@@ -1,6 +1,24 @@
 """Resilient, normalized provider framework."""
 
 from backend.app.providers.adapters import ProviderAdapter
+from backend.app.providers.binance_spot import (
+    BINANCE_SPOT_PROVIDER,
+    BinanceSpotCandlesAdapter,
+    BinanceSpotInterval,
+    BinanceSpotOrderBookAdapter,
+    BinanceSpotSymbolsAdapter,
+    BinanceSpotTickerAdapter,
+    BinanceSpotTradesAdapter,
+    SpotBookLevel,
+    SpotCandle,
+    SpotCandlesData,
+    SpotOrderBookData,
+    SpotSymbol,
+    SpotSymbolsData,
+    SpotTickerData,
+    SpotTrade,
+    SpotTradesData,
+)
 from backend.app.providers.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerRegistry,
@@ -47,7 +65,14 @@ from backend.app.providers.quota import (
 )
 
 __all__ = [
+    "BINANCE_SPOT_PROVIDER",
     "AssetType",
+    "BinanceSpotCandlesAdapter",
+    "BinanceSpotInterval",
+    "BinanceSpotOrderBookAdapter",
+    "BinanceSpotSymbolsAdapter",
+    "BinanceSpotTickerAdapter",
+    "BinanceSpotTradesAdapter",
     "CanonicalAsset",
     "CircuitBreaker",
     "CircuitBreakerRegistry",
@@ -85,5 +110,14 @@ __all__ = [
     "QuotaPolicy",
     "QuotaSnapshot",
     "RequestKind",
+    "SpotBookLevel",
+    "SpotCandle",
+    "SpotCandlesData",
+    "SpotOrderBookData",
+    "SpotSymbol",
+    "SpotSymbolsData",
+    "SpotTickerData",
+    "SpotTrade",
+    "SpotTradesData",
     "decimal_as_string",
 ]
