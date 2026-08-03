@@ -146,3 +146,18 @@ def test_provider_retry_and_deadline_relationships_are_validated() -> None:
             provider_total_deadline_seconds=5,
             provider_cache_lock_ttl_seconds=4,
         )
+
+
+def test_binance_spot_host_and_weight_reserve_are_fail_closed() -> None:
+    with pytest.raises(ValidationError, match="BINANCE_SPOT_BASE_URL"):
+        Settings(
+            _env_file=None,
+            binance_spot_base_url="https://api.binance.com",
+        )
+
+    with pytest.raises(ValidationError, match="BINANCE_SPOT_INTERACTIVE_RESERVE"):
+        Settings(
+            _env_file=None,
+            binance_spot_weight_limit_per_minute=100,
+            binance_spot_interactive_reserve=101,
+        )

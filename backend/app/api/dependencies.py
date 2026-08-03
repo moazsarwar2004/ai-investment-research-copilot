@@ -15,7 +15,12 @@ from backend.app.core.identity_security import IdentitySecurity
 from backend.app.core.rate_limits import AuthRateLimiter
 from backend.app.database import get_database_session
 from backend.app.repositories import IdentityRepository
-from backend.app.services import CurrentPrincipal, IdentityService, RequestContext
+from backend.app.services import (
+    BinanceSpotService,
+    CurrentPrincipal,
+    IdentityService,
+    RequestContext,
+)
 
 bearer_scheme = HTTPBearer(auto_error=False)
 DatabaseSessionDependency = Annotated[AsyncSession, Depends(get_database_session)]
@@ -65,6 +70,14 @@ def get_auth_rate_limiter(request: Request) -> AuthRateLimiter:
     if not isinstance(limiter, AuthRateLimiter):
         raise ServiceUnavailableError("Authentication rate limiting is unavailable.")
     return limiter
+
+
+def get_binance_spot_service(request: Request) -> BinanceSpotService:
+    """Return the process-owned, read-only Binance Spot research service."""
+    service = getattr(request.app.state, "binance_spot_service", None)
+    if not isinstance(service, BinanceSpotService):
+        raise ServiceUnavailableError("Binance Spot research is unavailable.")
+    return service
 
 
 async def get_current_principal(

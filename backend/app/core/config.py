@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     provider_retry_max_seconds: float = Field(default=1.0, ge=0, le=10)
     provider_retry_after_max_seconds: float = Field(default=30.0, gt=0, le=300)
     provider_response_max_bytes: int = Field(
-        default=2 * 1024 * 1024,
+        default=8 * 1024 * 1024,
         ge=1024,
         le=20 * 1024 * 1024,
     )
@@ -90,6 +90,19 @@ class Settings(BaseSettings):
     provider_cache_lock_ttl_seconds: int = Field(default=10, ge=1, le=60)
     provider_cache_lock_wait_seconds: float = Field(default=1.0, ge=0, le=10)
     provider_cache_lock_poll_seconds: float = Field(default=0.05, gt=0, le=1)
+
+    binance_spot_enabled: bool = True
+    binance_spot_base_url: str = "https://data-api.binance.vision"
+    binance_spot_weight_limit_per_minute: int = Field(
+        default=1_000,
+        ge=100,
+        le=6_000,
+    )
+    binance_spot_interactive_reserve: int = Field(
+        default=200,
+        ge=0,
+        le=5_000,
+    )
 
     jwt_signing_key: SecretStr = SecretStr(
         "local-jwt-signing-key-change-before-sharing-32-bytes"
@@ -232,6 +245,27 @@ class Settings(BaseSettings):
             raise ValueError("REDIS_KEY_PREFIX contains unsupported characters")
         return normalized
 
+    @field_validator("binance_spot_base_url")
+    @classmethod
+    def validate_binance_spot_base_url(cls, value: str) -> str:
+        """Pin Spot reads to Binance's public market-data-only HTTPS host."""
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "data-api.binance.vision"
+            or parsed.port not in {None, 443}
+            or parsed.username
+            or parsed.password
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "BINANCE_SPOT_BASE_URL must be " "https://data-api.binance.vision"
+            )
+        return normalized
+
     @model_validator(mode="after")
     def validate_security_mode(self) -> Self:
         """Prevent unsafe production debug and accidental local HSTS."""
@@ -266,6 +300,14 @@ class Settings(BaseSettings):
         if self.provider_cache_lock_ttl_seconds < self.provider_total_deadline_seconds:
             raise ValueError(
                 "PROVIDER_CACHE_LOCK_TTL_SECONDS must cover the provider deadline"
+            )
+        if (
+            self.binance_spot_interactive_reserve
+            > self.binance_spot_weight_limit_per_minute
+        ):
+            raise ValueError(
+                "BINANCE_SPOT_INTERACTIVE_RESERVE must not exceed "
+                "BINANCE_SPOT_WEIGHT_LIMIT_PER_MINUTE"
             )
         if self.environment in {Environment.STAGING, Environment.PRODUCTION}:
             if self.auth_expose_test_tokens:

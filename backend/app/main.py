@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.api.binance_spot_routes import binance_spot_router
 from backend.app.api.health_routes import health_router, probe_router, root_router
 from backend.app.api.identity_routes import identity_router
 from backend.app.cache import RedisCache
@@ -23,7 +24,13 @@ from backend.app.middleware.request_id_middleware import RequestIDMiddleware
 from backend.app.middleware.security_headers_middleware import (
     SecurityHeadersMiddleware,
 )
-from backend.app.providers import ProviderHttpClient
+from backend.app.providers import (
+    ProviderHttpClient,
+    ProviderManager,
+    ProviderQuotaManager,
+    QuotaPolicy,
+)
+from backend.app.services import BinanceSpotService
 
 logger = get_logger(__name__)
 
@@ -98,6 +105,32 @@ def create_application(
         if isinstance(resolved_resources.provider_http, ProviderHttpClient)
         else None
     )
+    application.state.binance_spot_service = None
+    if (
+        resolved_settings.binance_spot_enabled
+        and isinstance(resolved_resources.provider_http, ProviderHttpClient)
+        and isinstance(resolved_resources.cache, RedisCache)
+    ):
+        provider_manager = ProviderManager.from_settings(
+            resolved_settings,
+            http_client=resolved_resources.provider_http,
+            cache=resolved_resources.cache,
+            quota_manager=ProviderQuotaManager(
+                {
+                    "binance_spot": QuotaPolicy(
+                        limit=(resolved_settings.binance_spot_weight_limit_per_minute),
+                        window_seconds=60,
+                        interactive_reserve=(
+                            resolved_settings.binance_spot_interactive_reserve
+                        ),
+                    )
+                }
+            ),
+        )
+        application.state.binance_spot_service = BinanceSpotService(
+            provider_manager,
+            base_url=resolved_settings.binance_spot_base_url,
+        )
     application.state.started = False
 
     register_exception_handlers(application)
@@ -132,6 +165,10 @@ def create_application(
     )
     application.include_router(
         identity_router,
+        prefix=resolved_settings.api_v1_prefix,
+    )
+    application.include_router(
+        binance_spot_router,
         prefix=resolved_settings.api_v1_prefix,
     )
     return application

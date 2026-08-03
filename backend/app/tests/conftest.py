@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
+import json
 from collections.abc import AsyncGenerator
+from pathlib import Path
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
@@ -12,6 +15,8 @@ from pytest_asyncio import fixture as async_fixture
 from backend.app.core.config import Environment, LogFormat, Settings
 from backend.app.core.resources import ApplicationResources
 from backend.app.main import create_application
+
+_FIXTURE_DIRECTORY = Path(__file__).with_name("fixtures")
 
 
 class StubHealthResource:
@@ -36,6 +41,16 @@ class StubCloseResource:
 
     async def close(self) -> None:
         self.closed = True
+
+
+@pytest.fixture
+def binance_payloads() -> dict[str, Any]:
+    """Load recorded-shape Binance payloads without making a live request."""
+    fixture_path = _FIXTURE_DIRECTORY / "binance_spot_payloads.json"
+    payload: object = json.loads(fixture_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("Binance fixture root must be an object")
+    return payload
 
 
 @pytest.fixture
