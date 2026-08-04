@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.binance_spot_routes import binance_spot_router
+from backend.app.api.crypto_routes import crypto_router
 from backend.app.api.health_routes import health_router, probe_router, root_router
 from backend.app.api.identity_routes import identity_router
 from backend.app.cache import RedisCache
@@ -30,7 +31,7 @@ from backend.app.providers import (
     ProviderQuotaManager,
     QuotaPolicy,
 )
-from backend.app.services import BinanceSpotService
+from backend.app.services import BinanceSpotService, CryptoService
 
 logger = get_logger(__name__)
 
@@ -106,6 +107,7 @@ def create_application(
         else None
     )
     application.state.binance_spot_service = None
+    application.state.crypto_service = None
     if (
         resolved_settings.binance_spot_enabled
         and isinstance(resolved_resources.provider_http, ProviderHttpClient)
@@ -130,6 +132,41 @@ def create_application(
         application.state.binance_spot_service = BinanceSpotService(
             provider_manager,
             base_url=resolved_settings.binance_spot_base_url,
+        )
+    if (
+        resolved_settings.coingecko_enabled
+        and isinstance(resolved_resources.provider_http, ProviderHttpClient)
+        and isinstance(resolved_resources.cache, RedisCache)
+    ):
+        crypto_provider_manager = ProviderManager.from_settings(
+            resolved_settings,
+            http_client=resolved_resources.provider_http,
+            cache=resolved_resources.cache,
+            quota_manager=ProviderQuotaManager(
+                {
+                    "coingecko": (
+                        QuotaPolicy(
+                            limit=resolved_settings.coingecko_limit_per_minute,
+                            window_seconds=60,
+                            interactive_reserve=(
+                                resolved_settings.coingecko_interactive_reserve_per_minute
+                            ),
+                        ),
+                        QuotaPolicy(
+                            limit=resolved_settings.coingecko_monthly_call_budget,
+                            window_seconds=30 * 24 * 60 * 60,
+                            interactive_reserve=(
+                                resolved_settings.coingecko_interactive_reserve_per_month
+                            ),
+                        ),
+                    )
+                }
+            ),
+        )
+        application.state.crypto_service = CryptoService(
+            crypto_provider_manager,
+            base_url=resolved_settings.coingecko_base_url,
+            demo_api_key=resolved_settings.coingecko_api_key,
         )
     application.state.started = False
 
@@ -169,6 +206,10 @@ def create_application(
     )
     application.include_router(
         binance_spot_router,
+        prefix=resolved_settings.api_v1_prefix,
+    )
+    application.include_router(
+        crypto_router,
         prefix=resolved_settings.api_v1_prefix,
     )
     return application

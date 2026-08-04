@@ -161,3 +161,42 @@ def test_binance_spot_host_and_weight_reserve_are_fail_closed() -> None:
             binance_spot_weight_limit_per_minute=100,
             binance_spot_interactive_reserve=101,
         )
+
+
+def test_coingecko_host_key_mode_and_budget_reserves_are_fail_closed() -> None:
+    keyless = Settings.model_validate({"coingecko_demo_api_key": ""})
+    demo = Settings(
+        _env_file=None,
+        coingecko_demo_api_key=SecretStr("demo-api-key-must-not-leak"),
+    )
+
+    assert keyless.coingecko_api_key is None
+    assert keyless.coingecko_limit_per_minute == 10
+    assert demo.coingecko_limit_per_minute == 100
+    assert "demo-api-key-must-not-leak" not in repr(demo)
+
+    with pytest.raises(ValidationError, match="COINGECKO_BASE_URL"):
+        Settings(
+            _env_file=None,
+            coingecko_base_url="https://pro-api.coingecko.com/api/v3",
+        )
+
+    with pytest.raises(
+        ValidationError,
+        match="COINGECKO_INTERACTIVE_RESERVE_PER_MINUTE",
+    ):
+        Settings(
+            _env_file=None,
+            coingecko_keyless_limit_per_minute=5,
+            coingecko_interactive_reserve_per_minute=6,
+        )
+
+    with pytest.raises(
+        ValidationError,
+        match="COINGECKO_INTERACTIVE_RESERVE_PER_MONTH",
+    ):
+        Settings(
+            _env_file=None,
+            coingecko_monthly_call_budget=500,
+            coingecko_interactive_reserve_per_month=501,
+        )

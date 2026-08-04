@@ -9,9 +9,9 @@ pilot, with deterministic analytics, evidence retrieval, explainable risk,
 asynchronous reports, alerts, and operational monitoring designed to evolve
 through explicit release gates.
 
-> **Current release:** `0.5.0` — Binance Spot research MVP. Phases 0–5 are
-> complete, and Phase 6 (general crypto) is next. Public Spot market data,
-> deterministic analytics, and the first Streamlit research page are available.
+> **Current release:** `0.6.0` — general crypto research MVP. Phases 0–6 are
+> complete, and Phase 7 (stocks) is next. CoinGecko and Binance Spot market
+> data, deterministic analytics, and two Streamlit research modes are available.
 
 This software is for research and education only. It does not execute trades,
 store exchange trading keys, provide personalized financial advice, or promise
@@ -51,9 +51,10 @@ scraped finance endpoints.
 | Phase 3 - Identity and authorization | Complete | Users, sessions, Argon2id, JWT access, rotating refresh tokens, replay revocation, RBAC, ownership, rate limits, and append-only audits |
 | Phase 4 - Provider framework | Complete | Async HTTP, strict adapters, normalization/provenance, quotas, retry/backoff, circuits, locks, and stale fallback |
 | Phase 5 - Binance Spot MVP | Complete | Public symbols, ticker, candles, depth, trades, deterministic analytics/risk, and first Streamlit research page |
-| Phases 6-20 | Planned | Remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
+| Phase 6 - General crypto | Complete | CoinGecko ID search, global/market/history data, deterministic analytics/risk, quota budgets, and crypto UI |
+| Phases 7-20 | Planned | Remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
 
-Six of the 21 planned delivery phases are complete. Detailed exit gates are in
+Seven of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -64,12 +65,13 @@ phases are implemented.
 
 ```mermaid
 flowchart LR
-    Client["API clients + first<br/>Streamlit research page"] --> API["FastAPI backend<br/>implemented"]
+    Client["API clients + dual-mode<br/>Streamlit research page"] --> API["FastAPI backend<br/>implemented"]
     API --> PostgreSQL[("PostgreSQL 17 + pgvector<br/>implemented")]
     API --> Redis[("Redis cache<br/>implemented")]
     API --> ProviderFramework["Provider resilience framework<br/>implemented"]
     ProviderFramework --> Binance["Binance Spot public API<br/>implemented"]
-    ProviderFramework -. "later adapters" .-> Providers["Crypto + stock + SEC providers"]
+    ProviderFramework --> CoinGecko["CoinGecko general crypto<br/>implemented"]
+    ProviderFramework -. "later adapters" .-> Providers["Stock + SEC providers"]
     Workers["Celery workers + scheduler<br/>planned"] -.-> PostgreSQL
     Workers -.-> Redis
     Workers -. "planned" .-> Ollama["Local embeddings + Ollama"]
@@ -93,13 +95,13 @@ fallbacks.
 | Local infrastructure | Docker Desktop and Docker Compose | Implemented |
 | Testing and quality | pytest, pytest-asyncio, Ruff, Black, MyPy | Implemented |
 | Automation | GitHub Actions | Implemented |
-| Frontend | Streamlit | First Binance Spot research page implemented |
+| Frontend | Streamlit | Binance Spot and general crypto research modes implemented |
 | Background work | Celery workers and scheduler | Planned |
 | Provider resilience | HTTPX, strict Pydantic adapters, quotas, retries, circuits, cache locks | Implemented |
-| Research and AI | Binance Spot adapters and deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
+| Research and AI | Binance Spot and CoinGecko adapters plus deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
 | Production operations | Caddy, OpenTelemetry, Grafana Cloud, uptime checks, encrypted backups | Planned by phase |
 
-## Implemented through v0.5.0
+## Implemented through v0.6.0
 
 - Strict FastAPI application configuration with development, testing, staging,
   and production modes.
@@ -136,14 +138,24 @@ fallbacks.
   explainable Spot risk score with missing-input weight renormalization.
 - Eight read-only Binance Spot API routes, including partial-tolerant aggregate
   research with freshness, provenance, limitations, and a research disclaimer.
-- First Streamlit research page with loading, empty, error, partial, and stale
-  states plus price, technical, liquidity, trade, and risk views.
+- CoinGecko Demo/keyless adapters for identity-aware search, global market,
+  trending, paged markets, overview, and bounded price/market-cap/volume history.
+- Explicit general-crypto symbol ambiguity and strict CoinGecko provider-ID
+  identity, separate from Binance trading pairs.
+- Deterministic crypto technicals, trend evidence, return/volume anomalies,
+  volatility, drawdown, and six-component explainable risk.
+- Atomic per-minute and 30-day CoinGecko call budgets with interactive reserve,
+  cached/stale fallback, and required `Powered by CoinGecko` attribution.
+- Eleven read-only crypto API routes, including partial-tolerant aggregate
+  research with missing-input risk renormalization.
+- Streamlit Binance Spot and General crypto modes with loading, empty, error,
+  partial, stale, identity-selection, attribution, analytics, and risk states.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
 
-General crypto, stock/SEC research, Futures, later analytics, ML, RAG, reports,
-alerts, the complete frontend, and deployment remain gated to later phases.
+Stock/SEC research, Futures, later analytics, ML, RAG, reports, alerts, the
+complete frontend, and deployment remain gated to later phases.
 
 ## Repository structure
 
@@ -164,7 +176,7 @@ alerts, the complete frontend, and deployment remain gated to later phases.
 |   |-- providers/           HTTP, adapters, provenance, quotas, circuits, fallback
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
-|-- frontend/                Streamlit Binance Spot research page and API client
+|-- frontend/                Streamlit Spot/general-crypto research UI and API client
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
 |-- infrastructure/          Container initialization scripts
 |-- compose.yaml             Local PostgreSQL/pgvector and Redis services
@@ -230,7 +242,7 @@ Open:
 - Readiness: `http://127.0.0.1:8000/readyz`
 - Versioned health: `http://127.0.0.1:8000/api/v1/health`
 
-### 4. Run the Binance Spot research page
+### 4. Run the research page
 
 Keep the API running, then open a second PowerShell terminal:
 
@@ -239,8 +251,10 @@ Keep the API running, then open a second PowerShell terminal:
 python -m streamlit run frontend/app.py
 ```
 
-Open `http://127.0.0.1:8501`. The page calls only the local API; the API uses
-Binance's public market-data-only host and never accepts an exchange key.
+Open `http://127.0.0.1:8501` and choose Binance Spot or General crypto in the
+sidebar. The page calls only the local API. Binance uses its public
+market-data-only host; general crypto uses CoinGecko Demo when a key is
+configured and the lower-volume keyless public pool otherwise.
 
 `/livez` never calls external dependencies. `/readyz` returns HTTP 503 when
 PostgreSQL is unavailable, while a Redis-only failure remains HTTP 200 with
@@ -289,6 +303,20 @@ All provider responses are recorded-shape fixtures. Normal tests never call
 Binance or require an API key. The frontend test also renders the initial
 Streamlit page and asserts that it contains no script exception.
 
+Run the focused Phase 6 general crypto tests:
+
+```powershell
+python -m pytest -q `
+  backend/app/tests/test_coingecko_provider.py `
+  backend/app/tests/test_crypto_analytics.py `
+  backend/app/tests/test_crypto_service.py `
+  backend/app/tests/test_crypto_api.py `
+  backend/app/tests/test_frontend_state.py
+```
+
+These tests use committed CoinGecko response shapes and include the call-budget,
+symbol-ambiguity, partial-risk, and cached Streamlit exit-gate scenarios.
+
 After Compose is healthy and the migration is applied, run the real
 PostgreSQL/Redis tests:
 
@@ -333,6 +361,7 @@ groups include:
 | `ARGON2_*`, `AUTH_RATE_LIMIT_*` | Password cost policy and authentication throttling |
 | `PROVIDER_*` | Outbound timeouts/deadline, retry, response, circuit, and lock limits |
 | `BINANCE_SPOT_*` | Feature flag, pinned public host, local weight budget, and interactive reserve |
+| `COINGECKO_*` | Feature flag, optional Demo key, pinned host, minute/30-day budgets, and interactive reserve |
 
 Infrastructure URLs use secret-aware settings fields so normal settings
 representations do not expose their credentials.
@@ -354,6 +383,7 @@ representations do not expose their credentials.
 | [`phase_3_identity.md`](docs/phase_3_identity.md) | Identity design, security invariants, API demo, and exit evidence |
 | [`phase_4_provider_framework.md`](docs/phase_4_provider_framework.md) | Provider contracts, resilience controls, mock-only tests, and exit evidence |
 | [`phase_5_binance_spot.md`](docs/phase_5_binance_spot.md) | Spot adapters, analytics methodology, UI states, controls, demos, and exit evidence |
+| [`phase_6_general_crypto.md`](docs/phase_6_general_crypto.md) | CoinGecko identity, quota, adapters, analytics, UI, terms review, and exit evidence |
 
 ## Roadmap overview
 

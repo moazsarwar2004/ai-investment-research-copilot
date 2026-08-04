@@ -78,6 +78,11 @@ Question bodies allow ticker/CIK, form types, date bounds and comparison mode. T
 
 ## 6. General crypto
 
+Implemented in Phase 6. All routes are public, read-only, served below the
+versioned `/api/v1` prefix, and retain CoinGecko provenance/freshness metadata.
+Path identity is a lowercase CoinGecko provider ID; symbols and Binance pairs
+are rejected as path identities.
+
 | Method | Route | Access | Purpose |
 |---|---|---|---|
 | GET | `/crypto/search?q=` | Guest limited | Name/symbol/provider-ID search with ambiguity |
@@ -91,6 +96,12 @@ Question bodies allow ticker/CIK, form types, date bounds and comparison mode. T
 | GET | `/crypto/{coin_id}/anomalies` | Guest limited | Layered anomaly output |
 | GET | `/crypto/{coin_id}/risk` | Guest limited | Explainable crypto risk |
 | GET | `/crypto/{coin_id}/research` | Guest limited | Aggregated partial response for UI |
+
+History accepts only 1, 7, 30, 90, or 365 days. Market lists are bounded to
+100 rows and ten pages. Search responses expose exact ID/name/symbol matches and
+set an explicit ambiguity flag when a symbol maps to multiple provider IDs.
+Every response carries `Powered by CoinGecko` through provenance; aggregate
+research repeats it as a display field.
 
 ## 7. Binance Spot
 
