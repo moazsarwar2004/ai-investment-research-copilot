@@ -104,6 +104,23 @@ class Settings(BaseSettings):
         le=5_000,
     )
 
+    coingecko_enabled: bool = True
+    coingecko_base_url: str = "https://api.coingecko.com/api/v3"
+    coingecko_demo_api_key: SecretStr | None = None
+    coingecko_demo_limit_per_minute: int = Field(default=100, ge=1, le=500)
+    coingecko_keyless_limit_per_minute: int = Field(default=10, ge=1, le=30)
+    coingecko_monthly_call_budget: int = Field(default=9_000, ge=100, le=10_000)
+    coingecko_interactive_reserve_per_minute: int = Field(
+        default=2,
+        ge=0,
+        le=500,
+    )
+    coingecko_interactive_reserve_per_month: int = Field(
+        default=1_000,
+        ge=0,
+        le=10_000,
+    )
+
     jwt_signing_key: SecretStr = SecretStr(
         "local-jwt-signing-key-change-before-sharing-32-bytes"
     )
@@ -138,6 +155,14 @@ class Settings(BaseSettings):
         """Require enough entropy capacity for signing and keyed token digests."""
         if len(value.get_secret_value()) < 32:
             raise ValueError("identity secrets must contain at least 32 characters")
+        return value
+
+    @field_validator("coingecko_demo_api_key", mode="before")
+    @classmethod
+    def normalize_optional_coingecko_key(cls, value: object) -> object:
+        """Treat an empty environment placeholder as keyless public mode."""
+        if isinstance(value, str) and not value.strip():
+            return None
         return value
 
     @field_validator("api_v1_prefix")
@@ -266,6 +291,27 @@ class Settings(BaseSettings):
             )
         return normalized
 
+    @field_validator("coingecko_base_url")
+    @classmethod
+    def validate_coingecko_base_url(cls, value: str) -> str:
+        """Pin general-crypto reads to CoinGecko's public/Demo HTTPS root."""
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "api.coingecko.com"
+            or parsed.port not in {None, 443}
+            or parsed.username
+            or parsed.password
+            or parsed.path != "/api/v3"
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "COINGECKO_BASE_URL must be https://api.coingecko.com/api/v3"
+            )
+        return normalized
+
     @model_validator(mode="after")
     def validate_security_mode(self) -> Self:
         """Prevent unsafe production debug and accidental local HSTS."""
@@ -308,6 +354,27 @@ class Settings(BaseSettings):
             raise ValueError(
                 "BINANCE_SPOT_INTERACTIVE_RESERVE must not exceed "
                 "BINANCE_SPOT_WEIGHT_LIMIT_PER_MINUTE"
+            )
+        active_coingecko_minute_limit = (
+            self.coingecko_demo_limit_per_minute
+            if self.coingecko_demo_api_key is not None
+            else self.coingecko_keyless_limit_per_minute
+        )
+        if (
+            self.coingecko_interactive_reserve_per_minute
+            > active_coingecko_minute_limit
+        ):
+            raise ValueError(
+                "COINGECKO_INTERACTIVE_RESERVE_PER_MINUTE must not exceed the "
+                "active CoinGecko minute limit"
+            )
+        if (
+            self.coingecko_interactive_reserve_per_month
+            > self.coingecko_monthly_call_budget
+        ):
+            raise ValueError(
+                "COINGECKO_INTERACTIVE_RESERVE_PER_MONTH must not exceed "
+                "COINGECKO_MONTHLY_CALL_BUDGET"
             )
         if self.environment in {Environment.STAGING, Environment.PRODUCTION}:
             if self.auth_expose_test_tokens:
@@ -355,6 +422,20 @@ class Settings(BaseSettings):
     def digest_key(self) -> str:
         """Return the token-digest secret only at the hashing boundary."""
         return self.token_digest_key.get_secret_value()
+
+    @property
+    def coingecko_api_key(self) -> str | None:
+        """Return the optional Demo key only at the provider boundary."""
+        if self.coingecko_demo_api_key is None:
+            return None
+        return self.coingecko_demo_api_key.get_secret_value()
+
+    @property
+    def coingecko_limit_per_minute(self) -> int:
+        """Use a conservative public-pool limit when no Demo key is configured."""
+        if self.coingecko_demo_api_key is None:
+            return self.coingecko_keyless_limit_per_minute
+        return self.coingecko_demo_limit_per_minute
 
 
 @lru_cache(maxsize=1)

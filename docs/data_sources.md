@@ -21,7 +21,7 @@ Verification date: 2026-07-13. See [free_resource_verification.md](free_resource
 | Fundamentals | SEC XBRL Company Facts | Declared User-Agent | Statements and deterministic ratios | 12–24 h | Fact taxonomy/unit/period/form/source | Partial fields and lower confidence | Approved |
 | Binance Spot | Official public market-data REST API | None for public market endpoints | Ticker, candles, book, trades, exchange info | 5 s–5 min by endpoint | Binance, event/source/fetch time, weight | Respect 429/418; stale/partial; disable by flag | Conditionally approved |
 | Binance Futures | Official USDⓈ-M public market endpoints | None for selected public endpoints | Mark/index, funding, OI, public ratios/flow | 15 s–5 min | Binance, event/source/fetch time | Same, plus jurisdiction/reachability gate | Conditionally approved |
-| General crypto | CoinGecko Demo or keyless public API | Demo key preferred; keyless fallback | Low-volume non-commercial educational pilot | 3–5 min and batching | Prominent “Data provided by CoinGecko”; ≥60 s freshness on Demo | Monthly budget, stale cache, partial fields | Pilot only |
+| General crypto | CoinGecko Demo or keyless public API | Demo key preferred; keyless fallback | Low-volume non-commercial educational pilot | 3–30 min by endpoint and batching | Prominent “Powered by CoinGecko”; ≥60 s freshness on Demo | 9,000-call local budget, stale cache, partial fields | Implemented for pilot |
 | Stock quote/candles | No provider selected | TBD | Latest/delayed price and historical candles | 10–60 min | Must include provider and delay | Return unavailable; SEC research remains | Blocked on display rights |
 | Company identity | SEC ticker/CIK file, then selected stock provider if licensed | User-Agent / TBD | Ticker/CIK/company/exchange mapping | Daily | SEC/provider | Cached mapping | Approved for SEC fields |
 | Local embeddings | Selected open-source sentence-transformer | Local | Filing chunk vectors | Permanent per content+model hash | Model name/version/hash | BM25-only retrieval | Selection gate |
@@ -55,7 +55,7 @@ Official references: [Binance Spot REST API](https://developers.binance.com/en/d
 
 ## 5. CoinGecko adapter and quota budget
 
-The current Demo allowance is 10,000 calls/month and 100 calls/minute with data freshness from 60 seconds and required attribution. It has no production SLA or commercial license.
+The Demo allowance rechecked on 2026-08-04 is 10,000 calls/month and 100 calls/minute with data freshness from 60 seconds and required attribution. It has no production SLA or commercial license. The latest API terms reviewed were dated 2025-09-05.
 
 Initial budget:
 
@@ -108,4 +108,3 @@ Every adapter returns an internal Pydantic model with:
 ## 8. Source verification in reports
 
 Reports include a source manifest whose entries identify provider, title/type, source URL, source timestamp, fetch timestamp, cache/freshness, content hash and fields supported. LLM output can reference only manifest IDs supplied in structured context. Citation validation rejects unknown IDs and falls back to a deterministic template.
-

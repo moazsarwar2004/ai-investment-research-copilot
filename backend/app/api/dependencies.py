@@ -17,6 +17,7 @@ from backend.app.database import get_database_session
 from backend.app.repositories import IdentityRepository
 from backend.app.services import (
     BinanceSpotService,
+    CryptoService,
     CurrentPrincipal,
     IdentityService,
     RequestContext,
@@ -77,6 +78,14 @@ def get_binance_spot_service(request: Request) -> BinanceSpotService:
     service = getattr(request.app.state, "binance_spot_service", None)
     if not isinstance(service, BinanceSpotService):
         raise ServiceUnavailableError("Binance Spot research is unavailable.")
+    return service
+
+
+def get_crypto_service(request: Request) -> CryptoService:
+    """Return the process-owned, read-only general crypto research service."""
+    service = getattr(request.app.state, "crypto_service", None)
+    if not isinstance(service, CryptoService):
+        raise ServiceUnavailableError("General cryptocurrency research is unavailable.")
     return service
 
 

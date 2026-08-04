@@ -6,6 +6,7 @@ from backend.app.services.binance_spot_service import (
     BinanceSpotService,
     SpotResearchData,
 )
+from backend.app.services.crypto_service import CryptoResearchData, CryptoService
 from backend.app.services.identity_service import (
     CurrentPrincipal,
     IdentityService,
@@ -17,6 +18,8 @@ __all__ = [
     "AggregateProviderMeta",
     "AnalyticsResponse",
     "BinanceSpotService",
+    "CryptoResearchData",
+    "CryptoService",
     "CurrentPrincipal",
     "IdentityService",
     "RequestContext",

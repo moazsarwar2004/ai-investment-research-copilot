@@ -54,6 +54,16 @@ def binance_payloads() -> dict[str, Any]:
 
 
 @pytest.fixture
+def coingecko_payloads() -> dict[str, Any]:
+    """Load recorded-shape CoinGecko payloads without a live API call."""
+    fixture_path = _FIXTURE_DIRECTORY / "coingecko_payloads.json"
+    payload: object = json.loads(fixture_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise TypeError("CoinGecko fixture root must be an object")
+    return payload
+
+
+@pytest.fixture
 def test_settings() -> Settings:
     """Return deterministic settings without reading a developer's .env file."""
     return Settings(
