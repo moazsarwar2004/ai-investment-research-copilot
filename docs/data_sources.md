@@ -22,8 +22,8 @@ Verification date: 2026-07-13. See [free_resource_verification.md](free_resource
 | Binance Spot | Official public market-data REST API | None for public market endpoints | Ticker, candles, book, trades, exchange info | 5 s–5 min by endpoint | Binance, event/source/fetch time, weight | Respect 429/418; stale/partial; disable by flag | Conditionally approved |
 | Binance Futures | Official USDⓈ-M public market endpoints | None for selected public endpoints | Mark/index, funding, OI, public ratios/flow | 15 s–5 min | Binance, event/source/fetch time | Same, plus jurisdiction/reachability gate | Conditionally approved |
 | General crypto | CoinGecko Demo or keyless public API | Demo key preferred; keyless fallback | Low-volume non-commercial educational pilot | 3–30 min by endpoint and batching | Prominent “Powered by CoinGecko”; ≥60 s freshness on Demo | 9,000-call local budget, stale cache, partial fields | Implemented for pilot |
-| Stock quote/candles | No provider selected | TBD | Latest/delayed price and historical candles | 10–60 min | Must include provider and delay | Return unavailable; SEC research remains | Blocked on display rights |
-| Company identity | SEC ticker/CIK file, then selected stock provider if licensed | User-Agent / TBD | Ticker/CIK/company/exchange mapping | Daily | SEC/provider | Cached mapping | Approved for SEC fields |
+| Stock quote/candles | No live provider selected; PSX and global candidates reviewed | None | Latest/delayed price and historical candles | 10–60 min | Provider, plan, exchange, currency and delay required | Return structured unavailable response | License-gated |
+| Company identity | SEC ticker/CIK; future PSX/SECP source; licensed stock provider | User-Agent / TBD | Exchange-qualified symbol/company/regulator mapping | Daily | Regulator/provider | Cached mapping | Approved for SEC fields; PSX source pending |
 | Local embeddings | Selected open-source sentence-transformer | Local | Filing chunk vectors | Permanent per content+model hash | Model name/version/hash | BM25-only retrieval | Selection gate |
 | Local LLM | Small quantized instruct model via Ollama | Local | Optional report/answer wording | Report cache 1–6 h | Model/prompt/schema version | Template/retrieval-only fallback | Benchmark gate |
 
@@ -73,17 +73,25 @@ Official references: [CoinGecko API pricing and limits](https://www.coingecko.co
 
 ## 6. Stock-provider release gate
 
-No reviewed free source currently satisfies both the expected request volume and clear multi-user external-display rights:
+The Phase 7 review was refreshed on 2026-08-04. No reviewed free source
+currently satisfies both the expected request volume and clear multi-user
+external-display rights for this exchange-neutral pilot:
 
 | Candidate | Free technical allowance | Rights/reliability finding | Decision |
 |---|---|---|---|
-| Twelve Data Basic | 8 credits/minute, 800/day | Basic is internal non-display; external display begins on a paid business tier | Do not use for multi-user display |
+| PSX direct/Data Portal | Public website plus licensed real-time, end-of-day, and historical products | PSX requires applicable rights/license for dissemination through websites/apps; contact `marketdatarequest@psx.com.pk` | Keep PSX quote/candles unavailable pending written authorization |
+| Twelve Data individual | Personal/internal use | Individual plans do not permit redistribution or commercial third-party display; business/exchange approval may apply | Do not use for multi-user display |
 | Alpaca Basic | Free IEX data and historical allowance | Official support says Alpaca API data may not be redistributed | Do not use for multi-user display |
 | Alpha Vantage free | Most endpoints, 25 requests/day | Too small for the target and no documented acceptance of this display model in reviewed material | Do not select |
 | Massive/Polygon individual free | Free individual plan for selected data | Individual/business licensing must be resolved; free external-display right was not established | Do not select |
 | Scraped Yahoo/Nasdaq/Stooq pages | Technically possible | Unofficial/undocumented access and display terms | Prohibited |
 
-Phase 7 may implement the provider abstraction, symbols, SEC fundamentals, analytics over legally sourced data and labelled offline fixtures. It may not call a “live stock” feature production-ready until the owner records a provider/plan, terms URL, quota, delay and display permission.
+Phase 7 implements an exchange-neutral provider abstraction, explicit
+`exchange:symbol` identity, deterministic analytics, and dated synthetic test
+fixtures. PSX is the UI default for the Pakistan-focused pilot, not the only
+supported identity. No “live stock” feature may be called production-ready
+until the owner records a provider/plan, terms URL, quota, delay, attribution,
+and display permission.
 
 Safe product behavior without a licensed feed:
 
@@ -92,7 +100,7 @@ Safe product behavior without a licensed feed:
 - Quick demos use static dated fixtures with an “offline demonstration data” badge; fixtures are never described as current.
 - Risk renormalizes available components and lowers data confidence.
 
-Official candidate references: [Twelve Data individual pricing](https://twelvedata.com/pricing), [Twelve Data usage rights](https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage), [Twelve Data business pricing](https://twelvedata.com/pricing-business), [Alpaca redistribution statement](https://alpaca.markets/support/redistribute-alpaca-api), and [Alpha Vantage request limit](https://www.alphavantage.co/premium/).
+Official candidate references: [PSX Data Services & Vending](https://www.psx.com.pk/psx/product-and-services/data-services-vending), [Twelve Data usage rights](https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage), [Twelve Data U.S. equities guidance](https://support.twelvedata.com/en/articles/9935903-us-equities-market-data), [Alpaca redistribution statement](https://alpaca.markets/support/redistribute-alpaca-api), and [Alpha Vantage plans](https://www.alphavantage.co/premium/).
 
 ## 7. Provider normalization contract
 

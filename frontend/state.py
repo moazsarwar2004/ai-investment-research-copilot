@@ -91,3 +91,43 @@ def classify_crypto_state(
         ResearchViewState.READY,
         "Crypto research snapshot loaded.",
     )
+
+
+def classify_stock_state(
+    payload: dict[str, Any] | None,
+    *,
+    error: str | None = None,
+) -> ResearchState:
+    """Map stock licensing, freshness, and partial data to a UI state."""
+    if error:
+        return ResearchState(ResearchViewState.ERROR, error)
+    if payload is None:
+        return ResearchState(
+            ResearchViewState.EMPTY,
+            "Choose an exchange, enter a symbol, and load its research snapshot.",
+        )
+    meta = payload.get("meta")
+    if not isinstance(meta, dict):
+        return ResearchState(
+            ResearchViewState.ERROR,
+            "The API returned a response without freshness metadata.",
+        )
+    if meta.get("freshness") == "unavailable":
+        return ResearchState(
+            ResearchViewState.PARTIAL,
+            "Stock prices are unavailable until display rights are configured.",
+        )
+    if meta.get("freshness") == "stale" or meta.get("cache_status") == "stale":
+        return ResearchState(
+            ResearchViewState.STALE,
+            "Showing a stale licensed stock snapshot because refresh failed.",
+        )
+    if meta.get("partial") is True:
+        return ResearchState(
+            ResearchViewState.PARTIAL,
+            "Some stock research components are temporarily unavailable.",
+        )
+    return ResearchState(
+        ResearchViewState.READY,
+        "Licensed stock research snapshot loaded.",
+    )

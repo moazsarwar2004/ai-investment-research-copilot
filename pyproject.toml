@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ai-investment-research-copilot"
-version = "0.6.0"
-description = "Source-backed crypto and Binance Spot investment research MVP."
+version = "0.7.0"
+description = "Source-backed crypto, Binance Spot, and stock research MVP."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
 license = { text = "Proprietary - research and educational use" }

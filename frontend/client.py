@@ -138,3 +138,47 @@ def fetch_crypto_research(
         path=f"/api/v1/crypto/{normalized}/research",
         params={"days": days},
     )
+
+
+def search_stocks(
+    *,
+    api_base_url: str,
+    query: str,
+    exchange: str = "PSX",
+) -> dict[str, Any]:
+    """Search exchange-qualified stock identities through the local API."""
+    normalized = " ".join(query.strip().split())
+    if not 1 <= len(normalized) <= 80:
+        raise ResearchApiError("Stock search must contain 1-80 characters.")
+    if exchange not in {"PSX", "NASDAQ", "NYSE"}:
+        raise ResearchApiError("Select PSX, NASDAQ, or NYSE.")
+    return _get_json(
+        api_base_url=api_base_url,
+        path="/api/v1/stocks/search",
+        params={"q": normalized, "exchange": exchange},
+    )
+
+
+def fetch_stock_research(
+    *,
+    api_base_url: str,
+    exchange: str,
+    symbol: str,
+    interval: str,
+    days: int,
+) -> dict[str, Any]:
+    """Fetch an exchange-qualified aggregate with an explicit licensing state."""
+    normalized = symbol.strip().upper()
+    if exchange not in {"PSX", "NASDAQ", "NYSE"}:
+        raise ResearchApiError("Select PSX, NASDAQ, or NYSE.")
+    if not re.fullmatch(r"[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z0-9]{1,4})?", normalized):
+        raise ResearchApiError("Enter a valid uppercase stock symbol.")
+    if interval not in {"1d", "1w"}:
+        raise ResearchApiError("Stock interval must be 1d or 1w.")
+    if days not in {30, 90, 180, 365, 730, 1825}:
+        raise ResearchApiError("Select a supported stock history range.")
+    return _get_json(
+        api_base_url=api_base_url,
+        path=f"/api/v1/stocks/{normalized}/research",
+        params={"exchange": exchange, "interval": interval, "days": days},
+    )

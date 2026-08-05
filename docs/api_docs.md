@@ -49,7 +49,7 @@ Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precisi
 
 | Method | Route | Access | Purpose |
 |---|---|---|---|
-| GET | `/stocks/search?q=` | Guest limited | Normalized symbol/company search |
+| GET | `/stocks/search?q=&exchange=` | Guest limited | Exchange-qualified symbol/company search |
 | GET | `/stocks/{symbol}` | Guest limited | Company/quote overview with unavailable fields when unlicensed |
 | GET | `/stocks/{symbol}/candles` | Guest limited | Normalized OHLCV with interval/range validation |
 | GET | `/stocks/{symbol}/technicals` | Guest limited | Deterministic indicator set |
@@ -64,6 +64,14 @@ Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precisi
 | GET | `/filings/{filing_id}/sections/{section}` | Guest limited | Evidence section with source anchors |
 | GET | `/filings/compare` | Guest limited | Compare `latest_id` and `previous_id` |
 | POST | `/filings/{filing_id}/ingest` | Admin, idempotent | Queue parse/chunk/embed pipeline |
+
+Phase 7 implements search, overview, candles, technicals, trend, risk, and the
+aggregate research route. Each accepts `exchange=PSX|NASDAQ|NYSE`; PSX is the
+product default, while canonical identity remains `exchange:symbol`. Until a
+provider record proves external-display permission, price-dependent responses
+remain HTTP 200 with null components, `freshness: unavailable`, `partial: true`,
+and a stable license warning. Financials, ratios, filings, and stock anomalies
+remain assigned to later phases.
 
 ## 5. RAG
 

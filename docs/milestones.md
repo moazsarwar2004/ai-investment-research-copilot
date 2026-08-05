@@ -15,7 +15,7 @@ Phases remain sequential as requested. A later phase may be discussed, but imple
 | 4 | Build provider framework | Async HTTP client, adapters, normalization, provenance, quota, retry/backoff, circuit breaker, cache/locks | Mocked timeout/429/schema-change/stale-cache tests pass with no live provider dependency |
 | 5 | Deliver Binance Spot MVP | Public ticker/candles/book/trades, analytics/liquidity/risk, first Streamlit research page | Mock/API contract tests, symbol/weight controls and UI loading/error/stale states pass |
 | 6 | Add general crypto | Coin search/global/overview/history, analytics/anomalies/risk and quota budget | Terms recheck, call-budget test, symbol ambiguity test and cached UI demo pass |
-| 7 | Add stocks | Provider abstraction, search/profile/quote/candles when licensed, technicals and UI | External-display license recorded or quote stays unavailable; SEC-independent tests pass |
+| 7 | Add stocks | Exchange-neutral provider abstraction; PSX-default search/profile/quote/candles when licensed; technicals, risk and UI | External-display license recorded or quote stays unavailable; exchange-identity and SEC-independent tests pass |
 | 8 | Add SEC and fundamentals | Ticker/CIK, submissions, filing download/parse/sections, XBRL statements/ratios/comparison/risk | User-Agent/rate controls, representative filings, amended facts and source-link tests pass |
 | 9 | Add Binance Futures | Public mark/index/funding/OI/basis/positioning, anomalies/risk and disclaimer | Jurisdiction/reachability gate, mocked provider tests and no-trading surface audit pass |
 | 10 | Complete deterministic analytics | Indicators, ratios, volatility/drawdown, trend/risk/anomaly rules, validation/source verification | Golden datasets, edge cases, missing-input renormalization and reproducibility tests pass |
@@ -76,4 +76,3 @@ docs: establish phase 0 production planning baseline
 ```
 
 Never tag a phase complete solely because code exists; the exit-gate evidence is part of the deliverable.
-
