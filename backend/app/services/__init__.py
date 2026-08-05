@@ -13,6 +13,10 @@ from backend.app.services.identity_service import (
     RequestContext,
     TokenPair,
 )
+from backend.app.services.stock_service import (
+    StockResearchData,
+    StockService,
+)
 
 __all__ = [
     "AggregateProviderMeta",
@@ -24,5 +28,7 @@ __all__ = [
     "IdentityService",
     "RequestContext",
     "SpotResearchData",
+    "StockResearchData",
+    "StockService",
     "TokenPair",
 ]

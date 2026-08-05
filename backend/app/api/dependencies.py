@@ -21,6 +21,7 @@ from backend.app.services import (
     CurrentPrincipal,
     IdentityService,
     RequestContext,
+    StockService,
 )
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -86,6 +87,14 @@ def get_crypto_service(request: Request) -> CryptoService:
     service = getattr(request.app.state, "crypto_service", None)
     if not isinstance(service, CryptoService):
         raise ServiceUnavailableError("General cryptocurrency research is unavailable.")
+    return service
+
+
+def get_stock_service(request: Request) -> StockService:
+    """Return the process-owned, license-gated stock research service."""
+    service = getattr(request.app.state, "stock_service", None)
+    if not isinstance(service, StockService):
+        raise ServiceUnavailableError("Stock research is unavailable.")
     return service
 
 

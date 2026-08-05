@@ -12,6 +12,7 @@ from backend.app.api.binance_spot_routes import binance_spot_router
 from backend.app.api.crypto_routes import crypto_router
 from backend.app.api.health_routes import health_router, probe_router, root_router
 from backend.app.api.identity_routes import identity_router
+from backend.app.api.stock_routes import stock_router
 from backend.app.cache import RedisCache
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.error_handlers import register_exception_handlers
@@ -31,7 +32,7 @@ from backend.app.providers import (
     ProviderQuotaManager,
     QuotaPolicy,
 )
-from backend.app.services import BinanceSpotService, CryptoService
+from backend.app.services import BinanceSpotService, CryptoService, StockService
 
 logger = get_logger(__name__)
 
@@ -108,6 +109,9 @@ def create_application(
     )
     application.state.binance_spot_service = None
     application.state.crypto_service = None
+    # The service is intentionally present without a provider. It returns a
+    # structured unavailable state until reviewed display rights are configured.
+    application.state.stock_service = StockService()
     if (
         resolved_settings.binance_spot_enabled
         and isinstance(resolved_resources.provider_http, ProviderHttpClient)
@@ -210,6 +214,10 @@ def create_application(
     )
     application.include_router(
         crypto_router,
+        prefix=resolved_settings.api_v1_prefix,
+    )
+    application.include_router(
+        stock_router,
         prefix=resolved_settings.api_v1_prefix,
     )
     return application

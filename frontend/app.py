@@ -1,4 +1,4 @@
-"""Streamlit research UI for Binance Spot and general cryptocurrency data."""
+"""Streamlit research UI for crypto, Binance Spot, and PSX-first stocks."""
 
 from __future__ import annotations
 
@@ -11,13 +11,16 @@ from frontend.client import (
     ResearchApiError,
     fetch_crypto_research,
     fetch_spot_research,
+    fetch_stock_research,
     search_crypto,
+    search_stocks,
 )
 from frontend.state import (
     ResearchState,
     ResearchViewState,
     classify_crypto_state,
     classify_research_state,
+    classify_stock_state,
 )
 
 st.set_page_config(
@@ -318,6 +321,107 @@ def _render_crypto_research(payload: dict[str, Any]) -> None:
     )
 
 
+def _render_stock_search(payload: dict[str, Any] | None) -> None:
+    if payload is None:
+        return
+    data = _mapping(payload.get("data"))
+    license_data = _mapping(data.get("license"))
+    results = data.get("results")
+    if license_data.get("display_authorized") is not True:
+        st.caption(
+            "Provider-backed company search is unavailable; enter a known "
+            "exchange symbol below."
+        )
+    if isinstance(results, list) and results:
+        st.dataframe(results[:20], use_container_width=True, hide_index=True)
+
+
+def _render_stock_research(payload: dict[str, Any]) -> None:
+    data = _mapping(payload.get("data"))
+    meta = _mapping(payload.get("meta"))
+    profile = _mapping(data.get("profile"))
+    quote = _mapping(data.get("quote"))
+    candles = _mapping(data.get("candles"))
+    technicals = _mapping(data.get("technicals"))
+    risk = _mapping(data.get("risk"))
+    license_data = _mapping(data.get("license"))
+
+    _status(classify_stock_state(payload))
+    st.caption(
+        f"Identity: {data.get('exchange', 'PSX')}:{data.get('symbol', 'unknown')} | "
+        f"freshness: {meta.get('freshness', 'unknown')} | "
+        f"cache: {meta.get('cache_status', 'unknown')}"
+    )
+    identity = f"{data.get('exchange', 'PSX')}:{data.get('symbol', '?')}"
+    company_name = profile.get("company_name")
+    st.subheader(f"{company_name} ({identity})" if company_name else identity)
+    if quote:
+        default_currency = "PKR" if data.get("exchange") == "PSX" else "USD"
+        currency = str(quote.get("currency", default_currency))
+        change_percent = quote.get("change_percent")
+        delta = f"{_number(change_percent)}%" if change_percent is not None else None
+        first, second, third, fourth = st.columns(4)
+        first.metric(
+            f"Latest price ({currency})",
+            _number(quote.get("latest_price")),
+            delta,
+        )
+        second.metric("Volume", _number(quote.get("volume"), digits=0))
+        third.metric("Day high", _number(quote.get("high")))
+        fourth.metric("Day low", _number(quote.get("low")))
+    else:
+        st.info(
+            "Price cards will appear after a display-authorized provider is "
+            "configured or an explicitly user-supplied data workflow is added."
+        )
+
+    chart_tab, technical_tab, company_tab, risk_tab, license_tab = st.tabs(
+        ["History", "Technicals", "Company", "Risk", "Data rights"]
+    )
+    with chart_tab:
+        rows = candles.get("candles")
+        if isinstance(rows, list) and rows:
+            st.line_chart(rows, x="timestamp", y="close")
+            st.dataframe(rows[-30:], use_container_width=True, hide_index=True)
+        else:
+            st.info("Stock candles are unavailable without display rights.")
+    with technical_tab:
+        if technicals:
+            a, b, c, d = st.columns(4)
+            a.metric("Trend", str(technicals.get("trend", "unknown")).title())
+            b.metric("RSI (14)", _number(technicals.get("rsi_14")))
+            c.metric("SMA (20)", _number(technicals.get("sma_20")))
+            d.metric(
+                "Volatility",
+                f"{_number(technicals.get('annualized_volatility_percent'))}%",
+            )
+            st.json(technicals, expanded=False)
+        else:
+            st.info("Technicals require licensed or explicitly offline demo candles.")
+    with company_tab:
+        if profile:
+            st.json(profile, expanded=False)
+        else:
+            st.info("Regulatory company fundamentals are scheduled for Phase 8.")
+    with risk_tab:
+        _render_risk(risk, title="Deterministic stock risk")
+    with license_tab:
+        st.json(license_data, expanded=True)
+        st.caption(
+            "Live, delayed, and historical stock display remains disabled until "
+            "the provider and plan are reviewed and recorded."
+        )
+
+    with st.expander("Freshness warnings and sources"):
+        st.json(
+            {"warnings": meta.get("warnings", []), "sources": meta.get("sources", [])}
+        )
+    st.warning(
+        data.get("disclaimer", "Research and education only."),
+        icon=":material/info:",
+    )
+
+
 for key in (
     "research_payload",
     "research_error",
@@ -325,6 +429,10 @@ for key in (
     "crypto_search_error",
     "crypto_research_payload",
     "crypto_research_error",
+    "stock_search_payload",
+    "stock_search_error",
+    "stock_research_payload",
+    "stock_research_error",
 ):
     if key not in st.session_state:
         st.session_state[key] = None
@@ -334,7 +442,7 @@ st.title("Investment Research Co-Pilot")
 with st.sidebar:
     research_mode = st.radio(
         "Research mode",
-        options=["Binance Spot", "General crypto"],
+        options=["Binance Spot", "General crypto", "Stocks"],
         key="research_mode",
     )
     api_url = st.text_input(
@@ -373,7 +481,7 @@ with st.sidebar:
                 except ResearchApiError as error:
                     st.session_state.research_payload = None
                     st.session_state.research_error = str(error)
-    else:
+    elif research_mode == "General crypto":
         st.header("Crypto identity")
         search_query = st.text_input("Name, symbol, or CoinGecko ID", value="bitcoin")
         run_search = st.button("Search CoinGecko", use_container_width=True)
@@ -415,6 +523,62 @@ with st.sidebar:
                 except ResearchApiError as error:
                     st.session_state.crypto_research_payload = None
                     st.session_state.crypto_research_error = str(error)
+    else:
+        st.header("Stock identity")
+        stock_exchange = st.selectbox(
+            "Exchange",
+            options=["PSX", "NASDAQ", "NYSE"],
+            index=0,
+            help="PSX is the default for Pakistan; the data model is exchange-neutral.",
+        )
+        stock_query = st.text_input(
+            "Provider company search (optional)",
+            value="OGDC",
+            help="This activates after a display-authorized provider is configured.",
+        )
+        run_stock_search = st.button("Search stocks", use_container_width=True)
+        if run_stock_search:
+            with st.spinner("Searching exchange-qualified stock identities..."):
+                try:
+                    st.session_state.stock_search_payload = search_stocks(
+                        api_base_url=api_url,
+                        query=stock_query,
+                        exchange=stock_exchange,
+                    )
+                    st.session_state.stock_search_error = None
+                except ResearchApiError as error:
+                    st.session_state.stock_search_payload = None
+                    st.session_state.stock_search_error = str(error)
+        stock_symbol = (
+            st.text_input("Selected stock symbol", value="OGDC").strip().upper()
+        )
+        stock_interval = st.selectbox(
+            "Stock candle interval",
+            options=["1d", "1w"],
+            index=0,
+        )
+        stock_days = st.select_slider(
+            "Stock history range (days)",
+            options=[30, 90, 180, 365, 730, 1825],
+            value=365,
+        )
+        load_stock = st.button(
+            "Load stock research", type="primary", use_container_width=True
+        )
+        if load_stock:
+            with st.spinner("Loading licensed or unavailable stock snapshot..."):
+                try:
+                    st.session_state.stock_research_payload = fetch_stock_research(
+                        api_base_url=api_url,
+                        exchange=stock_exchange,
+                        symbol=stock_symbol,
+                        interval=stock_interval,
+                        days=stock_days,
+                    )
+                    st.session_state.stock_research_error = None
+                except ResearchApiError as error:
+                    st.session_state.stock_research_payload = None
+                    st.session_state.stock_research_error = str(error)
 
 if research_mode == "Binance Spot":
     st.write(
@@ -429,7 +593,7 @@ if research_mode == "Binance Spot":
         _status(spot_state)
     else:
         _render_spot_research(st.session_state.research_payload)
-else:
+elif research_mode == "General crypto":
     st.write(
         "General cryptocurrency research uses canonical CoinGecko IDs, "
         "provider-attributed market history, and deterministic analytics."
@@ -445,3 +609,19 @@ else:
         _status(crypto_state)
     else:
         _render_crypto_research(st.session_state.crypto_research_payload)
+else:
+    st.write(
+        "Exchange-qualified stock research with PSX as the default selection, "
+        "without making the architecture PSX-only."
+    )
+    if st.session_state.stock_search_error:
+        st.error(st.session_state.stock_search_error, icon=":material/error:")
+    _render_stock_search(st.session_state.stock_search_payload)
+    stock_state = classify_stock_state(
+        st.session_state.stock_research_payload,
+        error=st.session_state.stock_research_error,
+    )
+    if stock_state.state in {ResearchViewState.EMPTY, ResearchViewState.ERROR}:
+        _status(stock_state)
+    else:
+        _render_stock_research(st.session_state.stock_research_payload)

@@ -9,9 +9,9 @@ pilot, with deterministic analytics, evidence retrieval, explainable risk,
 asynchronous reports, alerts, and operational monitoring designed to evolve
 through explicit release gates.
 
-> **Current release:** `0.6.0` — general crypto research MVP. Phases 0–6 are
-> complete, and Phase 7 (stocks) is next. CoinGecko and Binance Spot market
-> data, deterministic analytics, and two Streamlit research modes are available.
+> **Current release:** `0.7.0` — exchange-neutral stock research foundation.
+> Phases 0–7 are complete. PSX is the default stock exchange in the UI while
+> NASDAQ and NYSE use the same contract; live stock data stays license-gated.
 
 This software is for research and education only. It does not execute trades,
 store exchange trading keys, provide personalized financial advice, or promise
@@ -52,9 +52,10 @@ scraped finance endpoints.
 | Phase 4 - Provider framework | Complete | Async HTTP, strict adapters, normalization/provenance, quotas, retry/backoff, circuits, locks, and stale fallback |
 | Phase 5 - Binance Spot MVP | Complete | Public symbols, ticker, candles, depth, trades, deterministic analytics/risk, and first Streamlit research page |
 | Phase 6 - General crypto | Complete | CoinGecko ID search, global/market/history data, deterministic analytics/risk, quota budgets, and crypto UI |
-| Phases 7-20 | Planned | Remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
+| Phase 7 - Stocks | Complete | Exchange-qualified PSX/NASDAQ/NYSE identities, license-gated provider abstraction, technicals/risk, unavailable fallback, and stock UI |
+| Phases 8-20 | Planned | Fundamentals, filings, remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
 
-Seven of the 21 planned delivery phases are complete. Detailed exit gates are in
+Eight of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -65,13 +66,14 @@ phases are implemented.
 
 ```mermaid
 flowchart LR
-    Client["API clients + dual-mode<br/>Streamlit research page"] --> API["FastAPI backend<br/>implemented"]
+    Client["API clients + three-mode<br/>Streamlit research page"] --> API["FastAPI backend<br/>implemented"]
     API --> PostgreSQL[("PostgreSQL 17 + pgvector<br/>implemented")]
     API --> Redis[("Redis cache<br/>implemented")]
     API --> ProviderFramework["Provider resilience framework<br/>implemented"]
     ProviderFramework --> Binance["Binance Spot public API<br/>implemented"]
     ProviderFramework --> CoinGecko["CoinGecko general crypto<br/>implemented"]
-    ProviderFramework -. "later adapters" .-> Providers["Stock + SEC providers"]
+    ProviderFramework --> StockContracts["License-gated stock contracts<br/>implemented; feed unavailable"]
+    ProviderFramework -. "later adapter" .-> Providers["Licensed stock + SEC providers"]
     Workers["Celery workers + scheduler<br/>planned"] -.-> PostgreSQL
     Workers -.-> Redis
     Workers -. "planned" .-> Ollama["Local embeddings + Ollama"]
@@ -95,13 +97,13 @@ fallbacks.
 | Local infrastructure | Docker Desktop and Docker Compose | Implemented |
 | Testing and quality | pytest, pytest-asyncio, Ruff, Black, MyPy | Implemented |
 | Automation | GitHub Actions | Implemented |
-| Frontend | Streamlit | Binance Spot and general crypto research modes implemented |
+| Frontend | Streamlit | Binance Spot, general crypto, and exchange-neutral stock research modes implemented |
 | Background work | Celery workers and scheduler | Planned |
 | Provider resilience | HTTPX, strict Pydantic adapters, quotas, retries, circuits, cache locks | Implemented |
-| Research and AI | Binance Spot and CoinGecko adapters plus deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
+| Research and AI | Binance Spot/CoinGecko adapters and license-gated stock contracts plus deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
 | Production operations | Caddy, OpenTelemetry, Grafana Cloud, uptime checks, encrypted backups | Planned by phase |
 
-## Implemented through v0.6.0
+## Implemented through v0.7.0
 
 - Strict FastAPI application configuration with development, testing, staging,
   and production modes.
@@ -150,12 +152,21 @@ fallbacks.
   research with missing-input risk renormalization.
 - Streamlit Binance Spot and General crypto modes with loading, empty, error,
   partial, stale, identity-selection, attribution, analytics, and risk states.
+- Exchange-qualified stock identities with PSX as the UI default and NASDAQ/
+  NYSE available through the same provider-neutral contracts and API routes.
+- Immutable stock display-license metadata, unavailable-by-default quote and
+  candle behavior, and an explicit prohibition on unlicensed site scraping.
+- Deterministic stock SMA/EMA/RSI/MACD/Bollinger/ATR/ROC/momentum, volatility,
+  drawdown, support/resistance, trend evidence, and renormalized risk.
+- Seven read-only stock routes plus loading, empty, unavailable/partial, stale,
+  error, source, license, analytics, and risk states in Streamlit.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
 
-Stock/SEC research, Futures, later analytics, ML, RAG, reports, alerts, the
-complete frontend, and deployment remain gated to later phases.
+Live stock quotes/candles, stock fundamentals and filings, Futures, later
+analytics, ML, RAG, reports, alerts, the complete frontend, and deployment
+remain gated to later phases or external display authorization.
 
 ## Repository structure
 
@@ -176,7 +187,7 @@ complete frontend, and deployment remain gated to later phases.
 |   |-- providers/           HTTP, adapters, provenance, quotas, circuits, fallback
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
-|-- frontend/                Streamlit Spot/general-crypto research UI and API client
+|-- frontend/                Streamlit Spot/crypto/stock research UI and API client
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
 |-- infrastructure/          Container initialization scripts
 |-- compose.yaml             Local PostgreSQL/pgvector and Redis services
@@ -251,10 +262,12 @@ Keep the API running, then open a second PowerShell terminal:
 python -m streamlit run frontend/app.py
 ```
 
-Open `http://127.0.0.1:8501` and choose Binance Spot or General crypto in the
-sidebar. The page calls only the local API. Binance uses its public
+Open `http://127.0.0.1:8501` and choose Binance Spot, General crypto, or Stocks
+in the sidebar. The page calls only the local API. Binance uses its public
 market-data-only host; general crypto uses CoinGecko Demo when a key is
-configured and the lower-volume keyless public pool otherwise.
+configured and the lower-volume keyless public pool otherwise. Stocks default
+to PSX identity, but market values remain unavailable until a reviewed
+external-display license is configured.
 
 `/livez` never calls external dependencies. `/readyz` returns HTTP 503 when
 PostgreSQL is unavailable, while a Redis-only failure remains HTTP 200 with
@@ -317,6 +330,21 @@ python -m pytest -q `
 These tests use committed CoinGecko response shapes and include the call-budget,
 symbol-ambiguity, partial-risk, and cached Streamlit exit-gate scenarios.
 
+Run the focused Phase 7 stock tests:
+
+```powershell
+python -m pytest -q `
+  backend/app/tests/test_stock_analytics.py `
+  backend/app/tests/test_stock_service.py `
+  backend/app/tests/test_stock_api.py `
+  backend/app/tests/test_frontend_state.py
+```
+
+These tests use dated synthetic candles and no stock/SEC network source. They
+cover exchange identity, the display-license activation gate, structured
+unavailable behavior, long-horizon technicals, risk renormalization, routes,
+and the PSX-default stock UI.
+
 After Compose is healthy and the migration is applied, run the real
 PostgreSQL/Redis tests:
 
@@ -363,6 +391,10 @@ groups include:
 | `BINANCE_SPOT_*` | Feature flag, pinned public host, local weight budget, and interactive reserve |
 | `COINGECKO_*` | Feature flag, optional Demo key, pinned host, minute/30-day budgets, and interactive reserve |
 
+Phase 7 intentionally adds no stock API-key setting: no display-authorized
+provider has been selected. A future adapter must carry reviewed license
+metadata before it can be activated.
+
 Infrastructure URLs use secret-aware settings fields so normal settings
 representations do not expose their credentials.
 
@@ -384,6 +416,7 @@ representations do not expose their credentials.
 | [`phase_4_provider_framework.md`](docs/phase_4_provider_framework.md) | Provider contracts, resilience controls, mock-only tests, and exit evidence |
 | [`phase_5_binance_spot.md`](docs/phase_5_binance_spot.md) | Spot adapters, analytics methodology, UI states, controls, demos, and exit evidence |
 | [`phase_6_general_crypto.md`](docs/phase_6_general_crypto.md) | CoinGecko identity, quota, adapters, analytics, UI, terms review, and exit evidence |
+| [`phase_7_stocks.md`](docs/phase_7_stocks.md) | Exchange identity, stock license gate, analytics, UI, provider review, and exit evidence |
 
 ## Roadmap overview
 

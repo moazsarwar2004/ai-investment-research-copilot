@@ -11,6 +11,7 @@ from frontend.state import (
     ResearchViewState,
     classify_crypto_state,
     classify_research_state,
+    classify_stock_state,
 )
 
 _FRONTEND_APP = Path(__file__).parents[3] / "frontend" / "app.py"
@@ -165,3 +166,78 @@ def test_streamlit_page_renders_cached_crypto_research_without_exceptions() -> N
     assert not app.exception
     assert any("Powered by CoinGecko" in item.value for item in app.markdown)
     assert any("Some crypto research" in item.value for item in app.warning)
+
+
+def test_stock_ui_states_include_license_unavailable_and_stale() -> None:
+    assert classify_stock_state(None).state is ResearchViewState.EMPTY
+    assert (
+        classify_stock_state(
+            {
+                "meta": {
+                    "freshness": "unavailable",
+                    "cache_status": "bypass",
+                    "partial": True,
+                }
+            }
+        ).state
+        is ResearchViewState.PARTIAL
+    )
+    assert (
+        classify_stock_state(
+            {
+                "meta": {
+                    "freshness": "stale",
+                    "cache_status": "stale",
+                    "partial": False,
+                }
+            }
+        ).state
+        is ResearchViewState.STALE
+    )
+
+
+def test_streamlit_page_renders_stock_license_gate_without_exceptions() -> None:
+    app = AppTest.from_file(str(_FRONTEND_APP))
+    app.session_state["research_mode"] = "Stocks"
+    app.session_state["stock_research_payload"] = {
+        "data": {
+            "symbol": "OGDC",
+            "exchange": "PSX",
+            "interval": "1d",
+            "days": 365,
+            "profile": None,
+            "quote": None,
+            "candles": None,
+            "technicals": None,
+            "trend": None,
+            "risk": None,
+            "market_data_status": "unavailable",
+            "license": {
+                "status": "unavailable",
+                "display_authorized": False,
+                "message": "No display-licensed provider is configured.",
+            },
+            "disclaimer": "Research and education only.",
+        },
+        "meta": {
+            "source": "unavailable",
+            "freshness": "unavailable",
+            "cache_status": "bypass",
+            "partial": True,
+            "staleness_seconds": 0,
+            "warnings": [],
+            "sources": [],
+        },
+    }
+    app.session_state["stock_research_error"] = None
+
+    app.run(timeout=20)
+
+    assert not app.exception
+    unavailable_warnings = [
+        item for item in app.warning if "Stock prices are unavailable" in item.value
+    ]
+    assert len(unavailable_warnings) == 1
+    assert not any(item.label.startswith("Latest price") for item in app.metric)
+    assert any("Price cards will appear" in item.value for item in app.info)
+    assert any("Research and education only" in item.value for item in app.warning)
