@@ -106,6 +106,46 @@ def test_deployment_rejects_local_identity_keys_and_token_exposure() -> None:
         Settings(_env_file=None, environment=Environment.STAGING)
 
 
+def test_production_rejects_placeholders_and_insecure_browser_origin() -> None:
+    jwt_key = SecretStr("production-jwt-secret-with-at-least-32-bytes")
+    digest_key = SecretStr("production-digest-secret-with-at-least-32-bytes")
+    database_url = SecretStr("postgresql+asyncpg://app:real-password@postgres/copilot")
+    migration_url = SecretStr(
+        "postgresql+asyncpg://migrator:real-password@postgres/copilot"
+    )
+    with pytest.raises(ValidationError, match="HTTPS"):
+        Settings(
+            _env_file=None,
+            environment=Environment.PRODUCTION,
+            allowed_origins="http://research.example.com",
+            jwt_signing_key=jwt_key,
+            token_digest_key=digest_key,
+            database_url=database_url,
+            migration_database_url=migration_url,
+        )
+
+    with pytest.raises(ValidationError, match="documented placeholder"):
+        Settings(
+            _env_file=None,
+            environment=Environment.STAGING,
+            database_url=SecretStr(
+                "postgresql+asyncpg://app:CHANGE_ME@postgres/copilot"
+            ),
+            migration_database_url=migration_url,
+            jwt_signing_key=jwt_key,
+            token_digest_key=digest_key,
+        )
+
+
+def test_upload_asset_quota_cannot_exceed_user_quota() -> None:
+    with pytest.raises(ValidationError, match="STOCK_UPLOAD_MAX_PER_ASSET"):
+        Settings(
+            _env_file=None,
+            stock_upload_max_per_user=5,
+            stock_upload_max_per_asset=6,
+        )
+
+
 def test_deployment_rejects_argon2id_below_safety_floor() -> None:
     with pytest.raises(ValidationError, match="Argon2id"):
         Settings(

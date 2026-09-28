@@ -1,5 +1,11 @@
 """Deterministic analytics that never perform provider or database I/O."""
 
+from backend.app.analytics.binance_futures import (
+    FuturesAnalytics,
+    FuturesRisk,
+    analyze_futures,
+    build_futures_risk,
+)
 from backend.app.analytics.binance_spot import (
     OrderBookAnalysis,
     SpotRisk,
@@ -36,6 +42,8 @@ __all__ = [
     "CryptoRisk",
     "CryptoTechnicalAnalysis",
     "CryptoTrendAnalysis",
+    "FuturesAnalytics",
+    "FuturesRisk",
     "OrderBookAnalysis",
     "SpotRisk",
     "StockRisk",
@@ -45,12 +53,14 @@ __all__ = [
     "TradeAnalysis",
     "analyze_crypto_anomalies",
     "analyze_crypto_technicals",
+    "analyze_futures",
     "analyze_order_book",
     "analyze_stock_technicals",
     "analyze_technicals",
     "analyze_trades",
     "build_crypto_risk",
     "build_crypto_trend",
+    "build_futures_risk",
     "build_spot_risk",
     "build_stock_risk",
     "build_stock_trend",

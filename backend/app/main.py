@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from backend.app.api.binance_futures_routes import binance_futures_router
 from backend.app.api.binance_spot_routes import binance_spot_router
 from backend.app.api.crypto_routes import crypto_router
 from backend.app.api.health_routes import health_router, probe_router, root_router
@@ -18,10 +19,13 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.error_handlers import register_exception_handlers
 from backend.app.core.identity_security import IdentitySecurity
 from backend.app.core.logger import configure_logging, get_logger
-from backend.app.core.rate_limits import AuthRateLimiter
+from backend.app.core.metrics import RequestMetrics
+from backend.app.core.rate_limits import ApiRateLimiter, AuthRateLimiter
 from backend.app.core.resources import ApplicationResources, create_resources
 from backend.app.database import DatabaseManager
 from backend.app.middleware.logging_middleware import RequestLoggingMiddleware
+from backend.app.middleware.metrics_middleware import MetricsMiddleware
+from backend.app.middleware.rate_limit_middleware import ApiRateLimitMiddleware
 from backend.app.middleware.request_id_middleware import RequestIDMiddleware
 from backend.app.middleware.security_headers_middleware import (
     SecurityHeadersMiddleware,
@@ -32,7 +36,14 @@ from backend.app.providers import (
     ProviderQuotaManager,
     QuotaPolicy,
 )
+from backend.app.providers.sec import SecFundamentalsProvider
+from backend.app.providers.stock_fundamentals import (
+    CompositeFundamentalsProvider,
+    OfficialReportManifestProvider,
+    StockFundamentalsProvider,
+)
 from backend.app.services import BinanceSpotService, CryptoService, StockService
+from backend.app.services.binance_futures_service import BinanceFuturesService
 
 logger = get_logger(__name__)
 
@@ -86,6 +97,7 @@ def create_application(
         lifespan=lifespan,
     )
     application.state.settings = resolved_settings
+    application.state.request_metrics = RequestMetrics()
     resolved_resources = resources or create_resources(resolved_settings)
     application.state.resources = resolved_resources
     application.state.database_manager = (
@@ -102,16 +114,63 @@ def create_application(
     application.state.auth_rate_limiter = AuthRateLimiter(
         resolved_settings, redis_cache
     )
+    application.state.api_rate_limiter = ApiRateLimiter(resolved_settings, redis_cache)
     application.state.provider_http_client = (
         resolved_resources.provider_http
         if isinstance(resolved_resources.provider_http, ProviderHttpClient)
         else None
     )
     application.state.binance_spot_service = None
+    application.state.binance_futures_service = None
     application.state.crypto_service = None
     # The service is intentionally present without a provider. It returns a
     # structured unavailable state until reviewed display rights are configured.
-    application.state.stock_service = StockService()
+    fundamentals_providers: list[StockFundamentalsProvider] = []
+    if resolved_settings.stock_fundamentals_manifest_path is not None:
+        fundamentals_providers.append(
+            OfficialReportManifestProvider.from_file(
+                resolved_settings.stock_fundamentals_manifest_path
+            )
+        )
+    if (
+        resolved_settings.sec_enabled
+        and resolved_settings.sec_user_agent is not None
+        and isinstance(resolved_resources.provider_http, ProviderHttpClient)
+        and isinstance(resolved_resources.cache, RedisCache)
+    ):
+        sec_provider_manager = ProviderManager.from_settings(
+            resolved_settings,
+            http_client=resolved_resources.provider_http,
+            cache=resolved_resources.cache,
+            quota_manager=ProviderQuotaManager(
+                {
+                    "sec_edgar": (
+                        QuotaPolicy(limit=5, window_seconds=1),
+                        QuotaPolicy(
+                            limit=resolved_settings.sec_requests_per_minute,
+                            window_seconds=60,
+                            interactive_reserve=min(
+                                60, resolved_settings.sec_requests_per_minute
+                            ),
+                        ),
+                    )
+                }
+            ),
+        )
+        fundamentals_providers.append(
+            SecFundamentalsProvider(
+                sec_provider_manager,
+                user_agent=resolved_settings.sec_user_agent,
+            )
+        )
+    fundamentals_provider = (
+        CompositeFundamentalsProvider(fundamentals_providers)
+        if fundamentals_providers
+        else None
+    )
+    application.state.stock_service = StockService(
+        fundamentals_provider=fundamentals_provider
+    )
     if (
         resolved_settings.binance_spot_enabled
         and isinstance(resolved_resources.provider_http, ProviderHttpClient)
@@ -136,6 +195,36 @@ def create_application(
         application.state.binance_spot_service = BinanceSpotService(
             provider_manager,
             base_url=resolved_settings.binance_spot_base_url,
+        )
+    if (
+        resolved_settings.binance_futures_enabled
+        and isinstance(resolved_resources.provider_http, ProviderHttpClient)
+        and isinstance(resolved_resources.cache, RedisCache)
+    ):
+        futures_provider_manager = ProviderManager.from_settings(
+            resolved_settings,
+            http_client=resolved_resources.provider_http,
+            cache=resolved_resources.cache,
+            quota_manager=ProviderQuotaManager(
+                {
+                    "binance_futures": (
+                        QuotaPolicy(
+                            limit=(
+                                resolved_settings.binance_futures_weight_limit_per_minute
+                            ),
+                            window_seconds=60,
+                            interactive_reserve=(
+                                resolved_settings.binance_futures_interactive_reserve
+                            ),
+                        ),
+                        QuotaPolicy(limit=400, window_seconds=300),
+                    )
+                }
+            ),
+        )
+        application.state.binance_futures_service = BinanceFuturesService(
+            futures_provider_manager,
+            base_url=resolved_settings.binance_futures_base_url,
         )
     if (
         resolved_settings.coingecko_enabled
@@ -192,10 +281,20 @@ def create_application(
         expose_headers=["X-Request-ID"],
     )
     application.add_middleware(
+        ApiRateLimitMiddleware,
+        limiter=application.state.api_rate_limiter,
+        security=application.state.identity_security,
+    )
+    application.add_middleware(
         SecurityHeadersMiddleware,
         settings=resolved_settings,
     )
     application.add_middleware(RequestLoggingMiddleware)
+    application.add_middleware(
+        MetricsMiddleware,
+        registry=application.state.request_metrics,
+        api_prefix=resolved_settings.api_v1_prefix,
+    )
     application.add_middleware(RequestIDMiddleware)
 
     application.include_router(root_router)
@@ -210,6 +309,10 @@ def create_application(
     )
     application.include_router(
         binance_spot_router,
+        prefix=resolved_settings.api_v1_prefix,
+    )
+    application.include_router(
+        binance_futures_router,
         prefix=resolved_settings.api_v1_prefix,
     )
     application.include_router(

@@ -9,9 +9,13 @@ pilot, with deterministic analytics, evidence retrieval, explainable risk,
 asynchronous reports, alerts, and operational monitoring designed to evolve
 through explicit release gates.
 
-> **Current release:** `0.7.0` — exchange-neutral stock research foundation.
-> Phases 0–7 are complete. PSX is the default stock exchange in the UI while
-> NASDAQ and NYSE use the same contract; live stock data stays license-gated.
+> **Current release:** `0.9.0` — public derivatives research.
+> Phases 0–9 are complete. PSX is the default stock exchange; official-report
+> fundamentals remain independent from license-gated market prices, and signed-in
+> users can privately analyze legally obtained OHLCV CSV history. Human-reviewed
+> FY2024/FY2025 SYS and MEBL fundamentals are available from official reports. Production
+> packaging is available. Public Binance USD-M perpetual research is implemented
+> behind a production reachability/jurisdiction flag. No live deployment is claimed.
 
 This software is for research and education only. It does not execute trades,
 store exchange trading keys, provide personalized financial advice, or promise
@@ -53,9 +57,10 @@ scraped finance endpoints.
 | Phase 5 - Binance Spot MVP | Complete | Public symbols, ticker, candles, depth, trades, deterministic analytics/risk, and first Streamlit research page |
 | Phase 6 - General crypto | Complete | CoinGecko ID search, global/market/history data, deterministic analytics/risk, quota budgets, and crypto UI |
 | Phase 7 - Stocks | Complete | Exchange-qualified PSX/NASDAQ/NYSE identities, license-gated provider abstraction, technicals/risk, unavailable fallback, and stock UI |
-| Phases 8-20 | Planned | Fundamentals, filings, remaining research modules, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
+| Phase 8 - Fundamentals and private stock data | Implemented and tested; PSX price rights remain external | SEC adapter, fail-closed official-report manifest v2, sector-aware ratios/risk, filing links, four data modes, owner-private CSV analysis, and human-approved SYS/MEBL fundamentals; PSX prices await written display rights |
+| Phases 9-20 | Planned | Futures, remaining analytics, ML, RAG, reports, alerts, full frontend, observability, hardening, and deployment |
 
-Eight of the 21 planned delivery phases are complete. Detailed exit gates are in
+Nine of the 21 planned delivery phases are complete. Detailed exit gates are in
 [`docs/milestones.md`](docs/milestones.md).
 
 ## Architecture
@@ -73,7 +78,8 @@ flowchart LR
     ProviderFramework --> Binance["Binance Spot public API<br/>implemented"]
     ProviderFramework --> CoinGecko["CoinGecko general crypto<br/>implemented"]
     ProviderFramework --> StockContracts["License-gated stock contracts<br/>implemented; feed unavailable"]
-    ProviderFramework -. "later adapter" .-> Providers["Licensed stock + SEC providers"]
+    ProviderFramework --> SEC["SEC official fundamentals<br/>implemented"]
+    ProviderFramework -. "licensed adapter later" .-> Providers["Licensed stock prices"]
     Workers["Celery workers + scheduler<br/>planned"] -.-> PostgreSQL
     Workers -.-> Redis
     Workers -. "planned" .-> Ollama["Local embeddings + Ollama"]
@@ -97,13 +103,13 @@ fallbacks.
 | Local infrastructure | Docker Desktop and Docker Compose | Implemented |
 | Testing and quality | pytest, pytest-asyncio, Ruff, Black, MyPy | Implemented |
 | Automation | GitHub Actions | Implemented |
-| Frontend | Streamlit | Binance Spot, general crypto, and exchange-neutral stock research modes implemented |
+| Frontend | Streamlit | Binance Spot/Futures, general crypto, and exchange-neutral stock research modes implemented |
 | Background work | Celery workers and scheduler | Planned |
 | Provider resilience | HTTPX, strict Pydantic adapters, quotas, retries, circuits, cache locks | Implemented |
-| Research and AI | Binance Spot/CoinGecko adapters and license-gated stock contracts plus deterministic analytics implemented; remaining providers, ML, RAG, and Ollama planned | In progress |
-| Production operations | Caddy, OpenTelemetry, Grafana Cloud, uptime checks, encrypted backups | Planned by phase |
+| Research and AI | Binance Spot/Futures, CoinGecko, official fundamentals, private stock analysis, and deterministic risk implemented; ML, RAG, and Ollama planned | In progress |
+| Production operations | Non-root image, private-network Compose, Caddy/TLS, backup/restore and smoke workflow implemented; live host, external monitoring and OpenTelemetry remain unverified/planned | Partial |
 
-## Implemented through v0.7.0
+## Implemented through v0.9.0
 
 - Strict FastAPI application configuration with development, testing, staging,
   and production modes.
@@ -117,8 +123,8 @@ fallbacks.
   probes, and clean shutdown handling.
 - Redis cache keys, schema-versioned values, freshness metadata, soft/hard TTL,
   corrupt-entry eviction, and safe cache bypass during Redis outages.
-- Alembic migrations for pgvector plus users, rotating sessions, and
-  append-only audit records.
+- Alembic migrations for pgvector, users, rotating sessions, append-only audit
+  records, and owner-private stock uploads.
 - Argon2id password hashing, short-lived signed access tokens, one-time refresh
   rotation, family-wide replay revocation, email verification, password reset,
   logout, and session management.
@@ -152,6 +158,14 @@ fallbacks.
   research with missing-input risk renormalization.
 - Streamlit Binance Spot and General crypto modes with loading, empty, error,
   partial, stale, identity-selection, attribution, analytics, and risk states.
+- Free, unauthenticated Binance USD-M perpetual adapters for mark/index price,
+  funding, open interest, basis, aggregate account ratios, and taker flow.
+- Interval-aware funding projections, non-annualized perpetual basis,
+  quantity-based open-interest change, crowding anomalies, and explainable
+  Futures condition risk with input-coverage confidence.
+- Nine read-only Futures routes, a safe feature/reachability status contract,
+  an independently gated production flag, and a Streamlit Futures journey with
+  source timestamps, partial/stale states, and prominent margin-risk context.
 - Exchange-qualified stock identities with PSX as the UI default and NASDAQ/
   NYSE available through the same provider-neutral contracts and API routes.
 - Immutable stock display-license metadata, unavailable-by-default quote and
@@ -163,10 +177,31 @@ fallbacks.
 - Unit, API, failure-mode, and real infrastructure integration tests.
 - GitHub CI for formatting, linting, types, tests, Compose validation, migrations,
   and real PostgreSQL/Redis verification.
+- Official-report stock fundamentals with normalized annual/quarterly periods,
+  deterministic ratios, source-linked reports, and explainable fundamental risk.
+- Configuration-gated SEC ticker, submissions, and XBRL Company Facts adapters
+  using a declared identifying User-Agent and conservative request budget.
+- Human-review-gated PSX/company-report JSON manifests with source document
+  hashes, page/unit/basis evidence, accounting checks, and candidate isolation;
+  missing facts stay unavailable and runtime never scrapes or invents values.
+- Real FY2024/FY2025 SYS and MEBL packages are human-approved and publishable,
+  including bank-specific MEBL analytics and field-level source evidence.
+- Authenticated private OHLCV CSV uploads with exact schema/size bounds, durable
+  owner predicates, duplicate detection, per-user/asset/row quotas, retention
+  cleanup, audit events, cadence checks, and Phase 7 technical/trend/risk reuse.
+- A fundamentals-first stock UI and four explicit source modes: licensed provider,
+  user supplied, official reports, and offline demo.
+- Coherent SEC filing-context selection with field-level concept/accession evidence,
+  guarded negative-equity risk treatment, and like-period balance comparisons.
+- Rotating frontend sessions, server-side logout, saved-upload management, a
+  deterministic evidence-question assistant, and downloadable cited Markdown briefs.
+- A non-root application image, private production Compose topology, Caddy HTTPS
+  ingress, immutable release-image workflow, smoke check, and backup/restore runbook.
 
-Live stock quotes/candles, stock fundamentals and filings, Futures, later
-analytics, ML, RAG, reports, alerts, the complete frontend, and deployment
-remain gated to later phases or external display authorization.
+Live stock quotes/candles, automatic Pakistani report discovery, later
+analytics, free-form filing RAG, asynchronous reports, watchlists/alerts, full
+observability, and a verified live deployment remain gated to later phases or
+external display authorization.
 
 ## Repository structure
 
@@ -187,10 +222,13 @@ remain gated to later phases or external display authorization.
 |   |-- providers/           HTTP, adapters, provenance, quotas, circuits, fallback
 |   |-- middleware/          Request ID, logging, and security headers
 |   `-- tests/               Unit, API, and infrastructure tests
-|-- frontend/                Streamlit Spot/crypto/stock research UI and API client
+|-- frontend/                Streamlit Spot/Futures/crypto/stock UI and API client
 |-- docs/                    Requirements, architecture, roadmap, and phase evidence
 |-- infrastructure/          Container initialization scripts
 |-- compose.yaml             Local PostgreSQL/pgvector and Redis services
+|-- compose.production.yaml  Single-host HTTPS production-pilot topology
+|-- Dockerfile               Non-root API/frontend application image
+|-- scripts/smoke.py         Post-deployment contract smoke check
 |-- pyproject.toml           Package and tool configuration
 `-- requirements*.txt        Runtime and development dependencies
 ```
@@ -281,7 +319,7 @@ providers. Run the fast local quality gates:
 ```powershell
 python -m ruff check .
 python -m black --check .
-python -m mypy backend
+python -m mypy backend frontend
 python -m pytest -m "not integration"
 python -m pip check
 python -m alembic upgrade head --sql
@@ -345,6 +383,22 @@ cover exchange identity, the display-license activation gate, structured
 unavailable behavior, long-horizon technicals, risk renormalization, routes,
 and the PSX-default stock UI.
 
+Run the focused Phase 8 tests:
+
+```powershell
+python -m pytest -q `
+  backend/app/tests/test_sec_provider.py `
+  backend/app/tests/test_stock_fundamentals.py `
+  backend/app/tests/test_stock_uploads.py `
+  backend/app/tests/test_stock_api.py `
+  backend/app/tests/test_research_brief.py `
+  backend/app/tests/test_frontend_state.py
+```
+
+These verify coherent SEC duration/accession contexts, field provenance,
+like-period ratios, negative-equity risk handling, private upload validation and
+quotas, source-backed briefs, unavailable states, and ownership boundaries.
+
 After Compose is healthy and the migration is applied, run the real
 PostgreSQL/Redis tests:
 
@@ -356,21 +410,24 @@ Remove-Item Env:RUN_INFRASTRUCTURE_TESTS
 
 The two integration tests verify PostgreSQL and Redis connectivity, pgvector,
 the current Alembic revision, Redis round trips, token rotation and replay
-revocation, rate limiting, RBAC, resource ownership, and append-only audit
-enforcement.
+revocation, rate limiting, RBAC, private-upload owner isolation and lifecycle,
+and append-only audit enforcement.
 
 ## Continuous integration
 
 The [`CI` workflow](.github/workflows/ci.yml) runs for pull requests to `main`,
 pushes to `main`, and manual dispatches. It contains two sequential jobs:
 
-1. `Quality` checks dependencies, Compose, Ruff, Black, MyPy, unit/API tests, and
-   offline Alembic SQL.
+1. `Quality` checks dependencies, local/production Compose, Ruff, Black, MyPy,
+   unit/API tests, offline Alembic SQL, and the non-root application image build.
 2. `Infrastructure integration` starts PostgreSQL/pgvector and Redis, applies the
-   migration, runs the real integration test, and removes its temporary volumes.
+   migration, exercises the Phase 7-to-8 upgrade, runs the real integration test,
+   and removes its temporary volumes.
 
-The workflow has read-only repository permissions, uses immutable action SHAs,
-requires no GitHub secrets, and does not deploy the application.
+CI has read-only repository permissions and immutable action SHAs. The separate
+release workflow can publish an immutable commit-SHA image to GHCR; deployment
+remains a manual, environment-approved operation and is never claimed from an
+image build alone.
 
 ## Configuration
 
@@ -390,6 +447,10 @@ groups include:
 | `PROVIDER_*` | Outbound timeouts/deadline, retry, response, circuit, and lock limits |
 | `BINANCE_SPOT_*` | Feature flag, pinned public host, local weight budget, and interactive reserve |
 | `COINGECKO_*` | Feature flag, optional Demo key, pinned host, minute/30-day budgets, and interactive reserve |
+| `SEC_*` | Official EDGAR feature flag, identifying User-Agent, and conservative request budget |
+| `STOCK_FUNDAMENTALS_MANIFEST_PATH` | Optional operator-reviewed PSX/SECP/company-report JSON manifest |
+| `STOCK_UPLOAD_*` | Private upload count, row-budget, and retention controls |
+| `COPILOT_*` | Fixed Streamlit-to-API target and explicit development-only edit switch |
 
 Phase 7 intentionally adds no stock API-key setting: no display-authorized
 provider has been selected. A future adapter must carry reviewed license
@@ -417,6 +478,10 @@ representations do not expose their credentials.
 | [`phase_5_binance_spot.md`](docs/phase_5_binance_spot.md) | Spot adapters, analytics methodology, UI states, controls, demos, and exit evidence |
 | [`phase_6_general_crypto.md`](docs/phase_6_general_crypto.md) | CoinGecko identity, quota, adapters, analytics, UI, terms review, and exit evidence |
 | [`phase_7_stocks.md`](docs/phase_7_stocks.md) | Exchange identity, stock license gate, analytics, UI, provider review, and exit evidence |
+| [`phase_8_fundamentals.md`](docs/phase_8_fundamentals.md) | Official fundamentals, SEC/manifest sources, private CSV ownership, four data modes, and exit evidence |
+| [`deployment.md`](docs/deployment.md) | Single-host production-pilot build, migration, smoke, release, rollback, and launch gates |
+| [`operations.md`](docs/operations.md) | Health, backups, restores, incidents, and scaling boundary |
+| [`privacy.md`](docs/privacy.md) | Private-upload storage, retention, deletion, and future document-ingestion boundary |
 
 ## Roadmap overview
 
@@ -441,5 +506,6 @@ evidence pass.
   state, missing-data warnings, and licensing constraints.
 - LLM output can summarize verified inputs but cannot calculate authoritative
   risk or invent evidence.
-- Internet-facing deployment requires replacing local credentials and completing
-  the later security, backup, observability, and production gates.
+- Internet-facing deployment requires replacing local credentials, configuring
+  user onboarding and off-host backups, validating current provider terms, and
+  verifying the live application and external monitoring.

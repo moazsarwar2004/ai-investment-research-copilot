@@ -5,10 +5,16 @@ from __future__ import annotations
 import asyncio
 import re
 from collections.abc import Awaitable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
+from backend.app.analytics.stock_fundamentals import (
+    FinancialRatios,
+    FundamentalRisk,
+    build_fundamental_risk,
+    calculate_financial_ratios,
+)
 from backend.app.analytics.stocks import (
     StockRisk,
     StockTechnicalAnalysis,
@@ -32,6 +38,14 @@ from backend.app.providers import (
     ProviderUnavailableError,
     ProviderWarning,
 )
+from backend.app.providers.stock_fundamentals import (
+    CompanyReport,
+    FinancialPeriod,
+    FundamentalModel,
+    StockDataMode,
+    StockFundamentalsProvider,
+    StockFundamentalsSnapshot,
+)
 from backend.app.providers.stocks import (
     StockCandlesData,
     StockExchange,
@@ -54,8 +68,8 @@ STOCK_DISCLAIMER = (
 )
 _UNAVAILABLE_MESSAGE = (
     "Stock quotes and candles are unavailable because no provider with reviewed "
-    "multi-user display rights is configured. Regulatory fundamentals remain "
-    "independent and are planned for Phase 8."
+    "multi-user display rights is configured. Official-report fundamentals and "
+    "private user-supplied price analysis remain independent."
 )
 _SYMBOL_PATTERN = re.compile(r"^[A-Z][A-Z0-9]{0,5}(?:[.-][A-Z0-9]{1,4})?$")
 
@@ -121,6 +135,37 @@ class StockRiskResult(_StockServiceModel):
     license: StockLicenseDisclosure
 
 
+class StockFundamentalsView(_StockServiceModel):
+    symbol: str
+    exchange: StockExchange
+    profile: StockProfile
+    fundamental_model: FundamentalModel
+    periods: list[FinancialPeriod]
+    ratios: list[FinancialRatios]
+    reports: list[CompanyReport]
+    risk: FundamentalRisk | None
+    source_warnings: list[str]
+    data_mode: str = StockDataMode.OFFICIAL_REPORTS
+
+
+class StockFinancialsResult(_StockServiceModel):
+    symbol: str
+    exchange: StockExchange
+    periods: list[FinancialPeriod]
+
+
+class StockRatiosResult(_StockServiceModel):
+    symbol: str
+    exchange: StockExchange
+    ratios: list[FinancialRatios]
+
+
+class StockReportsResult(_StockServiceModel):
+    symbol: str
+    exchange: StockExchange
+    reports: list[CompanyReport]
+
+
 class StockResearchData(_StockServiceModel):
     symbol: str
     exchange: StockExchange
@@ -132,6 +177,8 @@ class StockResearchData(_StockServiceModel):
     technicals: StockTechnicalAnalysis | None
     trend: StockTrendAnalysis | None
     risk: StockRisk | None
+    fundamentals: StockFundamentalsView | None = None
+    data_modes: list[str] = Field(default_factory=list)
     market_data_status: StockMarketDataStatus
     license: StockLicenseDisclosure
     disclaimer: str = STOCK_DISCLAIMER
@@ -183,11 +230,17 @@ def _license_disclosure(value: StockProviderLicense) -> StockLicenseDisclosure:
         terms_url=value.terms_url,
         terms_reviewed_on=value.terms_reviewed_on,
         quote_delay_minutes=value.quote_delay_minutes,
+        quote_data_kind=value.quote_data_kind,
+        history_data_kind=value.history_data_kind,
+        authorization_reference=value.authorization_reference,
+        authorization_scope=value.authorization_scope,
+        authorization_expires_on=value.authorization_expires_on,
         attribution=value.attribution,
         message=(
             f"{value.provider} {value.plan} display rights were reviewed on "
-            f"{value.terms_reviewed_on.isoformat()}; quotes may be delayed by "
-            f"{value.quote_delay_minutes} minute(s)."
+            f"{value.terms_reviewed_on.isoformat()}; quote class is "
+            f"{value.quote_data_kind.value} and history class is "
+            f"{value.history_data_kind.value}."
         ),
     )
 
@@ -289,14 +342,65 @@ async def _capture[DataT: BaseModel](
 
 
 class StockService:
-    """Expose stock research only when a provider proves display authorization."""
+    """Combine license-gated prices with independent official fundamentals."""
 
-    def __init__(self, provider: StockMarketDataProvider | None = None) -> None:
+    def __init__(
+        self,
+        provider: StockMarketDataProvider | None = None,
+        fundamentals_provider: StockFundamentalsProvider | None = None,
+    ) -> None:
         if provider is not None and not provider.license.display_authorized:
             raise ProviderConfigurationError(
                 "A stock provider cannot be activated without reviewed display rights."
             )
         self._provider = provider
+        self._fundamentals_provider = fundamentals_provider
+
+    @staticmethod
+    def _fundamental_view(
+        snapshot: StockFundamentalsSnapshot,
+    ) -> StockFundamentalsView:
+        ratios = calculate_financial_ratios(
+            snapshot.periods,
+            fundamental_model=snapshot.fundamental_model,
+        )
+        risk = build_fundamental_risk(
+            snapshot.periods,
+            ratios,
+            report_warning_count=len(snapshot.source_warnings),
+            fundamental_model=snapshot.fundamental_model,
+        )
+        return StockFundamentalsView(
+            symbol=snapshot.symbol,
+            exchange=snapshot.exchange,
+            profile=snapshot.profile,
+            fundamental_model=snapshot.fundamental_model,
+            periods=snapshot.periods,
+            ratios=ratios,
+            reports=sorted(
+                snapshot.reports,
+                key=lambda item: (
+                    item.published_at or item.approved_at or item.period_end or date.min
+                ),
+                reverse=True,
+            ),
+            risk=risk,
+            source_warnings=snapshot.source_warnings,
+        )
+
+    async def _get_fundamentals(
+        self, exchange: StockExchange, symbol: str
+    ) -> ProviderResponse[StockFundamentalsSnapshot]:
+        if self._fundamentals_provider is None:
+            raise ResourceNotFoundError(
+                "Official fundamentals are not configured for this company."
+            )
+        response = await self._fundamentals_provider.fundamentals(exchange, symbol)
+        if response.data.exchange is not exchange or response.data.symbol != symbol:
+            raise ProviderSchemaError(
+                "The fundamentals provider returned a different canonical identity."
+            )
+        return response
 
     @property
     def _status(self) -> StockMarketDataStatus:
@@ -506,6 +610,60 @@ class StockService:
             meta=research.meta,
         )
 
+    async def financials(
+        self, exchange: StockExchange, symbol: str
+    ) -> AnalyticsResponse[StockFinancialsResult]:
+        normalized = validate_stock_symbol(symbol)
+        response = await self._get_fundamentals(exchange, normalized)
+        return AnalyticsResponse(
+            data=StockFinancialsResult(
+                symbol=normalized,
+                exchange=exchange,
+                periods=response.data.periods,
+            ),
+            meta=_aggregate_meta([response.meta]),
+        )
+
+    async def ratios(
+        self, exchange: StockExchange, symbol: str
+    ) -> AnalyticsResponse[StockRatiosResult]:
+        normalized = validate_stock_symbol(symbol)
+        response = await self._get_fundamentals(exchange, normalized)
+        return AnalyticsResponse(
+            data=StockRatiosResult(
+                symbol=normalized,
+                exchange=exchange,
+                ratios=calculate_financial_ratios(
+                    response.data.periods,
+                    fundamental_model=response.data.fundamental_model,
+                ),
+            ),
+            meta=_aggregate_meta([response.meta]),
+        )
+
+    async def reports(
+        self, exchange: StockExchange, symbol: str
+    ) -> AnalyticsResponse[StockReportsResult]:
+        normalized = validate_stock_symbol(symbol)
+        response = await self._get_fundamentals(exchange, normalized)
+        return AnalyticsResponse(
+            data=StockReportsResult(
+                symbol=normalized,
+                exchange=exchange,
+                reports=sorted(
+                    response.data.reports,
+                    key=lambda item: (
+                        item.published_at
+                        or item.approved_at
+                        or item.period_end
+                        or date.min
+                    ),
+                    reverse=True,
+                ),
+            ),
+            meta=_aggregate_meta([response.meta]),
+        )
+
     async def research(
         self,
         exchange: StockExchange,
@@ -515,7 +673,7 @@ class StockService:
         days: int,
     ) -> AnalyticsResponse[StockResearchData]:
         normalized = validate_stock_symbol(symbol)
-        if self._provider is None:
+        if self._provider is None and self._fundamentals_provider is None:
             return AnalyticsResponse(
                 data=StockResearchData(
                     symbol=normalized,
@@ -528,20 +686,33 @@ class StockService:
                     technicals=None,
                     trend=None,
                     risk=None,
+                    fundamentals=None,
+                    data_modes=[],
                     market_data_status=self._status,
                     license=self._license,
                 ),
                 meta=_unavailable_meta(),
             )
-        profile_result, quote_result, candles_result = await asyncio.gather(
-            _capture("profile", self._provider.profile(exchange, normalized)),
-            _capture("quote", self._provider.quote(exchange, normalized)),
-            _capture(
-                "candles",
-                self._provider.candles(
-                    exchange, normalized, interval=interval, days=days
+        profile_result: tuple[ProviderResponse[StockProfile] | None, str | None]
+        quote_result: tuple[ProviderResponse[StockQuote] | None, str | None]
+        candles_result: tuple[ProviderResponse[StockCandlesData] | None, str | None]
+        if self._provider is None:
+            profile_result = (None, "profile")
+            quote_result = (None, "quote")
+            candles_result = (None, "candles")
+        else:
+            profile_result, quote_result, candles_result = await asyncio.gather(
+                _capture("profile", self._provider.profile(exchange, normalized)),
+                _capture("quote", self._provider.quote(exchange, normalized)),
+                _capture(
+                    "candles",
+                    self._provider.candles(
+                        exchange, normalized, interval=interval, days=days
+                    ),
                 ),
-            ),
+            )
+        fundamentals, fundamentals_missing = await _capture(
+            "fundamentals", self._get_fundamentals(exchange, normalized)
         )
         profile, profile_missing = profile_result
         quote, quote_missing = quote_result
@@ -581,18 +752,64 @@ class StockService:
         if candles is not None and technicals is None:
             missing.append("technicals")
         metas = [item.meta for item in (profile, quote, candles) if item is not None]
+        if fundamentals is not None:
+            metas.append(fundamentals.meta)
+        if fundamentals_missing is not None:
+            missing.append(fundamentals_missing)
+        if not metas:
+            return AnalyticsResponse(
+                data=StockResearchData(
+                    symbol=normalized,
+                    exchange=exchange,
+                    interval=interval,
+                    days=days,
+                    profile=None,
+                    quote=None,
+                    candles=None,
+                    technicals=None,
+                    trend=None,
+                    risk=None,
+                    fundamentals=None,
+                    data_modes=[],
+                    market_data_status=self._status,
+                    license=self._license,
+                ),
+                meta=_unavailable_meta(),
+            )
+        fundamental_view = (
+            self._fundamental_view(fundamentals.data)
+            if fundamentals is not None
+            else None
+        )
+        modes: list[str] = []
+        if fundamentals is not None:
+            modes.append(StockDataMode.OFFICIAL_REPORTS)
+        if any(item is not None for item in (quote, candles)):
+            if any(
+                item is not None and item.meta.delay_class.value == "offline"
+                for item in (quote, candles)
+            ):
+                modes.append(StockDataMode.OFFLINE_DEMO)
+            else:
+                modes.append(StockDataMode.LICENSED_PROVIDER)
         return AnalyticsResponse(
             data=StockResearchData(
                 symbol=normalized,
                 exchange=exchange,
                 interval=interval,
                 days=days,
-                profile=profile.data if profile else None,
+                profile=(
+                    profile.data
+                    if profile
+                    else fundamental_view.profile if fundamental_view else None
+                ),
                 quote=quote.data if quote else None,
                 candles=candles.data if candles else None,
                 technicals=technicals,
                 trend=trend,
                 risk=risk,
+                fundamentals=fundamental_view,
+                data_modes=modes,
                 market_data_status=self._status,
                 license=self._license,
             ),
@@ -603,7 +820,11 @@ class StockService:
 __all__ = [
     "STOCK_DISCLAIMER",
     "StockCandlesResult",
+    "StockFinancialsResult",
+    "StockFundamentalsView",
     "StockOverviewData",
+    "StockRatiosResult",
+    "StockReportsResult",
     "StockResearchData",
     "StockRiskResult",
     "StockSearchView",

@@ -1,10 +1,21 @@
 # Architecture
 
+## Implementation status
+
+This document records both the current Phase 9 system and the approved later
+target. They are intentionally different. The implemented v0.9.0 runtime is a
+single FastAPI worker, one Streamlit process, PostgreSQL/pgvector, Redis, and
+Caddy. It includes deterministic Binance Spot and Futures, CoinGecko, stock,
+fundamentals, and private CSV research. It does **not** yet include Celery workers, scheduled
+jobs, SEC document RAG, Ollama, MLflow, distributed tracing, watchlists, alerts,
+or asynchronous report generation. Those components remain Phase 10-20 roadmap
+items and must not be presented as deployed functionality.
+
 ## 1. Chosen style
 
 The system is a modular monolith deployed as cooperating containers. One backend codebase owns domain rules and exposes versioned APIs. The worker and scheduler import the same services but run outside request processes. This keeps deployment suitable for one low-cost VM without coupling the UI to business logic.
 
-## 2. System context
+## 2. Target system context (later phases)
 
 ```mermaid
 flowchart LR
@@ -29,7 +40,7 @@ flowchart LR
     DB --> Backup
 ```
 
-## 3. Request and job flow
+## 3. Current request flow and later job flow
 
 ```mermaid
 flowchart TD
@@ -44,7 +55,7 @@ flowchart TD
     Validate --> Analytics["Deterministic analytics / approved model"]
     Analytics --> Persist["Repository transaction"]
     Persist --> Response["Envelope + freshness + warnings"]
-    Service -->|Heavy work| Job["Idempotent job record"]
+    Service -.->|Phase 15: heavy work| Job["Idempotent job record"]
     Job --> Queue["Redis broker"]
     Queue --> Worker["Celery worker"]
     Worker --> Persist
@@ -61,13 +72,18 @@ Routes do not contain calculations, provider mapping or SQL. Repositories perfor
 | `repositories` | SQLAlchemy queries and transactions | Business scoring or HTTP calls |
 | `providers` | HTTP client, normalization, quota/terms metadata | User authorization or UI formatting |
 | `analytics` | Indicators, ratios, risk, trends, anomalies | Provider I/O or LLM wording |
-| `ml` | Features, training, registry, inference, fallbacks | Exact-price promises |
-| `rag` | Filing parse/chunk/embed/retrieve/rerank/cite | Treating retrieved text as instructions |
-| `llm` | Prompt registry, Ollama call, schema/citation guard, fallback | Price/risk computation |
-| `workers` | Task orchestration, retries, heartbeat | Duplicated domain logic |
-| `monitoring` | Metrics, traces, structured events, drift/RAG/LLM quality | Secrets or raw credentials |
+| `ml` (planned) | Features, training, registry, inference, fallbacks | Exact-price promises |
+| `rag` (planned) | Filing parse/chunk/embed/retrieve/rerank/cite | Treating retrieved text as instructions |
+| `llm` (planned) | Prompt registry, Ollama call, schema/citation guard, fallback | Price/risk computation |
+| `workers` (planned) | Task orchestration, retries, heartbeat | Duplicated domain logic |
+| `monitoring` (partial) | Low-cardinality request metrics and structured events now; traces and quality views later | Secrets or raw credentials |
 
-## 5. Production container topology
+## 5. Target production container topology (Phase 20)
+
+The checked-in `compose.production.yaml` currently deploys only Caddy,
+Streamlit, FastAPI, PostgreSQL, Redis, and a one-shot migration container. The
+worker, scheduler, Ollama, MLflow, telemetry collector, and automated backup job
+below are future additions, not current services.
 
 ```mermaid
 flowchart TB
@@ -127,7 +143,7 @@ When a provider fails, the response policy is:
 3. Return a partial response with unavailable fields.
 4. Return a typed `503 provider_unavailable` only if the requested result has no responsible fallback.
 
-## 9. RAG and report architecture
+## 9. Planned RAG and report architecture (Phases 13-15)
 
 ```mermaid
 flowchart LR
@@ -160,12 +176,12 @@ Oracle's verified allowance is currently 2 OCPUs and 12 GB RAM. That is workable
 | Workload | Initial control |
 |---|---|
 | API | 2 worker processes maximum after load test; start with 1 on 2 OCPUs |
-| Celery | concurrency 1; separate queues for interactive reports and scheduled ingestion |
+| Celery (planned) | concurrency 1; separate queues for interactive reports and scheduled ingestion |
 | PostgreSQL | conservative connection pool; pgvector indexes sized after corpus measurement |
 | Redis | `maxmemory` and eviction limited to cache keys; broker/result keys protected by policy |
-| Ollama | one small quantized instruct model loaded on demand; one generation at a time |
-| Embeddings | small CPU model, batch in worker, never in an API request process |
-| MLflow | internal service; stop outside training/admin windows if memory pressure requires it |
+| Ollama (planned) | one small quantized instruct model loaded on demand; one generation at a time |
+| Embeddings (planned) | small CPU model, batch in worker, never in an API request process |
+| MLflow (planned) | internal service; stop outside training/admin windows if memory pressure requires it |
 | Telemetry | sampling and low-cardinality labels; never asset/user IDs as metric labels |
 
 An account-level load test must demonstrate acceptable memory headroom during simultaneous API, worker, database and Ollama activity. If not, Ollama moves to a separate user-owned machine or remains disabled with template fallback.
@@ -185,4 +201,3 @@ CI builds immutable ARM64-compatible images and publishes commit-SHA/version tag
 ## 13. Architecture validation result
 
 The modular-monolith design is appropriate for the stated traffic and avoids unnecessary distributed systems. The principal feasibility constraints are external: stock display licensing, Oracle capacity/idle reclamation, and CPU-only LLM latency. Each has a non-destructive feature fallback and a milestone gate.
-

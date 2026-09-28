@@ -93,6 +93,41 @@ def classify_crypto_state(
     )
 
 
+def classify_futures_state(
+    payload: dict[str, Any] | None,
+    *,
+    error: str | None = None,
+) -> ResearchState:
+    """Map the Futures provider, cache, and partial states for the UI."""
+    if error:
+        return ResearchState(ResearchViewState.ERROR, error)
+    if payload is None:
+        return ResearchState(
+            ResearchViewState.EMPTY,
+            "Choose a USD-M perpetual and load its public research snapshot.",
+        )
+    meta = payload.get("meta")
+    if not isinstance(meta, dict):
+        return ResearchState(
+            ResearchViewState.ERROR,
+            "The API returned a response without freshness metadata.",
+        )
+    if meta.get("freshness") == "stale" or meta.get("cache_status") == "stale":
+        return ResearchState(
+            ResearchViewState.STALE,
+            "Showing cached Futures data because the public provider refresh failed.",
+        )
+    if meta.get("partial") is True:
+        return ResearchState(
+            ResearchViewState.PARTIAL,
+            "Some Futures signals are unavailable; missing inputs are not inferred.",
+        )
+    return ResearchState(
+        ResearchViewState.READY,
+        "Public USD-M Futures research snapshot loaded.",
+    )
+
+
 def classify_stock_state(
     payload: dict[str, Any] | None,
     *,
@@ -115,7 +150,8 @@ def classify_stock_state(
     if meta.get("freshness") == "unavailable":
         return ResearchState(
             ResearchViewState.PARTIAL,
-            "Stock prices are unavailable until display rights are configured.",
+            "Stock prices are unavailable; official fundamentals and private "
+            "CSV analysis remain independent.",
         )
     if meta.get("freshness") == "stale" or meta.get("cache_status") == "stale":
         return ResearchState(

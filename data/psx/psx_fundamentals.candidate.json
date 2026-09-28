@@ -1,0 +1,261 @@
+{
+  "schema_version": "official-report-manifest-v2",
+  "generated_at": "2026-09-19T00:00:00+05:00",
+  "source_name": "psx-company-investor-relations",
+  "attribution": "Facts transcribed from linked official company annual reports; publication remains human-review gated.",
+  "terms_review_version": "company-ir-source-review-2026-09-19",
+  "allowed_source_hosts": [
+    "www.systemsltd.com",
+    "www.meezanbank.com"
+  ],
+  "companies": [
+    {
+      "review": {
+        "status": "candidate",
+        "human_reviewer": null,
+        "reviewed_at": null,
+        "notes": "AI-assisted extraction prepared for independent human verification. Do not publish yet.",
+        "source_identity_checked": false,
+        "statement_basis_checked": false,
+        "figures_checked": false,
+        "unit_conversion_checked": false,
+        "accounting_checks_checked": false
+      },
+      "fundamentals": {
+        "symbol": "SYS",
+        "exchange": "PSX",
+        "profile": {
+          "symbol": "SYS",
+          "company_name": "Systems Limited",
+          "exchange": "PSX",
+          "currency": "PKR",
+          "country": "Pakistan",
+          "sector": "Technology & Communication",
+          "industry": "Information technology services",
+          "website": "https://www.systemsltd.com/",
+          "description": "Pakistan-headquartered technology services company listed on PSX under SYS.",
+          "provider_id": "PSX:SYS"
+        },
+        "fundamental_model": "corporate",
+        "periods": [
+          {
+            "fiscal_year": 2024,
+            "fiscal_period": "FY",
+            "period_start": "2024-01-01",
+            "period_end": "2024-12-31",
+            "currency": "PKR",
+            "reporting_basis": "consolidated",
+            "reported_unit_scale": 1,
+            "revenue": "67473021160",
+            "cost_of_revenue": "51315319855",
+            "gross_profit": "16157701305",
+            "operating_profit": "8271972779",
+            "net_income": "7460012773",
+            "eps": "5.11",
+            "assets": "57547344392",
+            "liabilities": "18816678736",
+            "equity": "38730665656",
+            "cash": "7820717667",
+            "operating_cash_flow": "4117414601",
+            "source_url": "https://www.systemsltd.com/sites/default/files/2026-04/Systems%20Limited-Annual%20Report%202025.pdf",
+            "source_label": "Systems Limited Annual Report 2025, consolidated comparative 2024",
+            "fact_sources": {
+              "revenue": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Revenue from contracts with customers - net","reported_value":"67473021160","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "cost_of_revenue": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Cost of revenue","reported_value":"51315319855","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "gross_profit": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Gross profit","reported_value":"16157701305","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_profit": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Operating profit","reported_value":"8271972779","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "net_income": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Profit for the year","reported_value":"7460012773","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "eps": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Basic earnings per share","reported_value":"5.11","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "assets": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Total assets","reported_value":"57547344392","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "liabilities": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Non-current liabilities plus current liabilities","reported_value":"18816678736","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "equity": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Share capital and reserves plus non-controlling interest","reported_value":"38730665656","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "cash": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Cash and bank balances","reported_value":"7820717667","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_cash_flow": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":202,"printed_page":"202","source_table":"Consolidated Statement of Cash Flows","reported_label":"Cash flows from operating activities","reported_value":"4117414601","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"}
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "FY",
+            "period_start": "2025-01-01",
+            "period_end": "2025-12-31",
+            "currency": "PKR",
+            "reporting_basis": "consolidated",
+            "reported_unit_scale": 1,
+            "revenue": "80391884594",
+            "cost_of_revenue": "57982619705",
+            "gross_profit": "22409264889",
+            "operating_profit": "12006337696",
+            "net_income": "11040583934",
+            "eps": "7.52",
+            "assets": "75488572268",
+            "liabilities": "26909749751",
+            "equity": "48578822517",
+            "cash": "13504721300",
+            "operating_cash_flow": "10877008675",
+            "source_url": "https://www.systemsltd.com/sites/default/files/2026-04/Systems%20Limited-Annual%20Report%202025.pdf",
+            "source_label": "Systems Limited Annual Report 2025, consolidated",
+            "fact_sources": {
+              "revenue": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Revenue from contracts with customers - net","reported_value":"80391884594","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "cost_of_revenue": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Cost of revenue","reported_value":"57982619705","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "gross_profit": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Gross profit","reported_value":"22409264889","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_profit": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Operating profit","reported_value":"12006337696","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "net_income": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Profit for the year","reported_value":"11040583934","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "eps": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":199,"printed_page":"199","source_table":"Consolidated Statement of Profit or Loss","reported_label":"Basic earnings per share","reported_value":"7.52","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "assets": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Total assets","reported_value":"75488572268","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "liabilities": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Non-current liabilities plus current liabilities","reported_value":"26909749751","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "equity": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Share capital and reserves plus non-controlling interest","reported_value":"48578822517","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "cash": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":198,"printed_page":"198","source_table":"Consolidated Statement of Financial Position","reported_label":"Cash and bank balances","reported_value":"13504721300","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_cash_flow": {"source_kind":"official_report","report_id":"sys-ar-2025","document_page":202,"printed_page":"202","source_table":"Consolidated Statement of Cash Flows","reported_label":"Cash flows from operating activities","reported_value":"10877008675","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"}
+            }
+          }
+        ],
+        "reports": [
+          {
+            "report_id": "sys-ar-2025",
+            "report_type": "annual",
+            "title": "Systems Limited Annual Report 2025 (consolidated statements)",
+            "published_at": null,
+            "publication_period": "2026-04",
+            "approved_at": null,
+            "period_end": "2025-12-31",
+            "source_url": "https://www.systemsltd.com/sites/default/files/2026-04/Systems%20Limited-Annual%20Report%202025.pdf",
+            "source_name": "Systems Limited investor relations",
+            "accession_number": null,
+            "amended": false,
+            "reporting_basis": "consolidated",
+            "document_sha256": "408c201ad0421cebaad3e75b9486fcedd87252defc169b510e06e41c6339d60f",
+            "document_page_count": 276
+          }
+        ],
+        "source_warnings": [
+          "Candidate extraction only: an independent human has not yet verified the figures.",
+          "The official investor-relations page gives April 2026, not an exact publication date."
+        ]
+      }
+    },
+    {
+      "review": {
+        "status": "candidate",
+        "human_reviewer": null,
+        "reviewed_at": null,
+        "notes": "AI-assisted extraction prepared for independent human verification. Do not publish yet.",
+        "source_identity_checked": false,
+        "statement_basis_checked": false,
+        "figures_checked": false,
+        "unit_conversion_checked": false,
+        "accounting_checks_checked": false
+      },
+      "fundamentals": {
+        "symbol": "MEBL",
+        "exchange": "PSX",
+        "profile": {
+          "symbol": "MEBL",
+          "company_name": "Meezan Bank Limited",
+          "exchange": "PSX",
+          "currency": "PKR",
+          "country": "Pakistan",
+          "sector": "Commercial Banks",
+          "industry": "Islamic banking",
+          "website": "https://www.meezanbank.com/",
+          "description": "Pakistan-based Islamic commercial bank listed on PSX under MEBL.",
+          "provider_id": "PSX:MEBL"
+        },
+        "fundamental_model": "bank",
+        "periods": [
+          {
+            "fiscal_year": 2024,
+            "fiscal_period": "FY",
+            "period_start": "2024-01-01",
+            "period_end": "2024-12-31",
+            "currency": "PKR",
+            "reporting_basis": "consolidated",
+            "reported_unit_scale": 1000,
+            "net_income": "103719335000",
+            "eps": "57.28",
+            "assets": "3912188601000",
+            "liabilities": "3658558381000",
+            "equity": "253630220000",
+            "total_income": "318891381000",
+            "operating_expenses": "86847165000",
+            "profit_before_tax": "226279254000",
+            "deposits": "2584583671000",
+            "financing_and_advances": "1514755936000",
+            "investments": "1878852841000",
+            "source_url": "https://www.meezanbank.com/wp-content/themes/mbl/downloads/annualreport2025.pdf",
+            "source_label": "Meezan Bank Annual Report 2025, consolidated comparative 2024",
+            "fact_sources": {
+              "net_income": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Profit after taxation","reported_value":"103719335","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "eps": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Basic earnings per share","reported_value":"57.28","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "assets": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Total assets","reported_value":"3912188601","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "liabilities": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Total liabilities","reported_value":"3658558381","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "equity": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Net assets including non-controlling interest","reported_value":"253630220","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "total_income": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Total income","reported_value":"318891381","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_expenses": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Total other expenses","reported_value":"86847165","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "profit_before_tax": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Profit before taxation","reported_value":"226279254","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "deposits": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Deposits and other accounts","reported_value":"2584583671","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "financing_and_advances": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Islamic financing and related assets","reported_value":"1514755936","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "investments": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Investments","reported_value":"1878852841","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"}
+            }
+          },
+          {
+            "fiscal_year": 2025,
+            "fiscal_period": "FY",
+            "period_start": "2025-01-01",
+            "period_end": "2025-12-31",
+            "currency": "PKR",
+            "reporting_basis": "consolidated",
+            "reported_unit_scale": 1000,
+            "net_income": "92178462000",
+            "eps": "50.47",
+            "assets": "4819935454000",
+            "liabilities": "4531737389000",
+            "equity": "288198065000",
+            "total_income": "290647948000",
+            "operating_expenses": "89850201000",
+            "profit_before_tax": "200298738000",
+            "deposits": "3302337407000",
+            "financing_and_advances": "1640934798000",
+            "investments": "2608334204000",
+            "source_url": "https://www.meezanbank.com/wp-content/themes/mbl/downloads/annualreport2025.pdf",
+            "source_label": "Meezan Bank Annual Report 2025, consolidated",
+            "fact_sources": {
+              "net_income": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Profit after taxation","reported_value":"92178462","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "eps": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Basic earnings per share","reported_value":"50.47","reported_unit":"PKR","unit_scale":1,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "assets": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Total assets","reported_value":"4819935454","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "liabilities": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Total liabilities","reported_value":"4531737389","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "equity": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Net assets including non-controlling interest","reported_value":"288198065","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "total_income": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Total income","reported_value":"290647948","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "operating_expenses": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Total other expenses","reported_value":"89850201","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "profit_before_tax": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":298,"printed_page":"296","source_table":"Consolidated Statement of Profit and Loss Account","reported_label":"Profit before taxation","reported_value":"200298738","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "deposits": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Deposits and other accounts","reported_value":"3302337407","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "financing_and_advances": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Islamic financing and related assets","reported_value":"1640934798","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"},
+              "investments": {"source_kind":"official_report","report_id":"mebl-ar-2025","document_page":297,"printed_page":"295","source_table":"Consolidated Statement of Financial Position","reported_label":"Investments","reported_value":"2608334204","reported_unit":"PKR","unit_scale":1000,"reporting_basis":"consolidated","extraction_method":"machine_extracted","review_status":"unreviewed"}
+            }
+          }
+        ],
+        "reports": [
+          {
+            "report_id": "mebl-ar-2025",
+            "report_type": "annual",
+            "title": "Meezan Bank Annual Report 2025 (consolidated statements)",
+            "published_at": null,
+            "publication_period": "2026",
+            "approved_at": "2026-02-09",
+            "period_end": "2025-12-31",
+            "source_url": "https://www.meezanbank.com/wp-content/themes/mbl/downloads/annualreport2025.pdf",
+            "source_name": "Meezan Bank financial information",
+            "accession_number": null,
+            "amended": false,
+            "reporting_basis": "consolidated",
+            "document_sha256": "40a8984bb399a0a749db509f501237af1054a922d06544504df69bf875b4749b",
+            "document_page_count": 413
+          }
+        ],
+        "source_warnings": [
+          "Candidate extraction only: an independent human has not yet verified the figures.",
+          "The annual report states Board approval on February 9, 2026; an exact public posting date was not found."
+        ]
+      }
+    }
+  ]
+}

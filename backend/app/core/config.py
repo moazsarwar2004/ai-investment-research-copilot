@@ -104,6 +104,21 @@ class Settings(BaseSettings):
         le=5_000,
     )
 
+    # Research-only public USD-M Futures endpoints. Deployments may disable this
+    # immediately when regional availability or provider policy changes.
+    binance_futures_enabled: bool = False
+    binance_futures_base_url: str = "https://fapi.binance.com"
+    binance_futures_weight_limit_per_minute: int = Field(
+        default=300,
+        ge=10,
+        le=2_400,
+    )
+    binance_futures_interactive_reserve: int = Field(
+        default=60,
+        ge=0,
+        le=2_400,
+    )
+
     coingecko_enabled: bool = True
     coingecko_base_url: str = "https://api.coingecko.com/api/v3"
     coingecko_demo_api_key: SecretStr | None = None
@@ -121,6 +136,15 @@ class Settings(BaseSettings):
         le=10_000,
     )
 
+    stock_fundamentals_manifest_path: str | None = None
+    sec_enabled: bool = False
+    sec_user_agent: str | None = None
+    sec_requests_per_minute: int = Field(default=300, ge=1, le=540)
+    stock_upload_max_per_user: int = Field(default=50, ge=1, le=500)
+    stock_upload_max_per_asset: int = Field(default=10, ge=1, le=100)
+    stock_upload_max_rows_per_user: int = Field(default=50_000, ge=1_500, le=500_000)
+    stock_upload_retention_days: int = Field(default=90, ge=1, le=3_650)
+
     jwt_signing_key: SecretStr = SecretStr(
         "local-jwt-signing-key-change-before-sharing-32-bytes"
     )
@@ -135,6 +159,8 @@ class Settings(BaseSettings):
     fresh_auth_ttl_minutes: int = Field(default=15, ge=5, le=60)
     auth_rate_limit_attempts: int = Field(default=5, ge=1, le=100)
     auth_rate_limit_window_seconds: int = Field(default=900, ge=60, le=86_400)
+    api_rate_limit_requests: int = Field(default=120, ge=10, le=10_000)
+    api_rate_limit_window_seconds: int = Field(default=60, ge=1, le=3_600)
     auth_expose_test_tokens: bool = False
     argon2_time_cost: int = Field(default=3, ge=1, le=10)
     argon2_memory_cost_kib: int = Field(default=65_536, ge=8_192, le=262_144)
@@ -164,6 +190,31 @@ class Settings(BaseSettings):
         if isinstance(value, str) and not value.strip():
             return None
         return value
+
+    @field_validator("stock_fundamentals_manifest_path", mode="before")
+    @classmethod
+    def normalize_optional_manifest_path(cls, value: object) -> object:
+        """Treat a blank path as disabled and accept JSON manifests only."""
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("STOCK_FUNDAMENTALS_MANIFEST_PATH must be a path")
+        normalized = value.strip()
+        if not normalized:
+            return None
+        if not normalized.casefold().endswith(".json"):
+            raise ValueError("STOCK_FUNDAMENTALS_MANIFEST_PATH must end in .json")
+        return normalized
+
+    @field_validator("sec_user_agent", mode="before")
+    @classmethod
+    def normalize_optional_sec_user_agent(cls, value: object) -> object:
+        if value is None:
+            return None
+        if not isinstance(value, str):
+            raise ValueError("SEC_USER_AGENT must be a string")
+        normalized = " ".join(value.strip().split())
+        return normalized or None
 
     @field_validator("api_v1_prefix")
     @classmethod
@@ -291,6 +342,27 @@ class Settings(BaseSettings):
             )
         return normalized
 
+    @field_validator("binance_futures_base_url")
+    @classmethod
+    def validate_binance_futures_base_url(cls, value: str) -> str:
+        """Pin Futures reads to Binance's official public USD-M REST host."""
+        normalized = value.strip().rstrip("/")
+        parsed = urlsplit(normalized)
+        if (
+            parsed.scheme != "https"
+            or parsed.hostname != "fapi.binance.com"
+            or parsed.port not in {None, 443}
+            or parsed.username
+            or parsed.password
+            or parsed.path
+            or parsed.query
+            or parsed.fragment
+        ):
+            raise ValueError(
+                "BINANCE_FUTURES_BASE_URL must be https://fapi.binance.com"
+            )
+        return normalized
+
     @field_validator("coingecko_base_url")
     @classmethod
     def validate_coingecko_base_url(cls, value: str) -> str:
@@ -325,6 +397,20 @@ class Settings(BaseSettings):
             )
         if self.jwt_key == self.digest_key:
             raise ValueError("JWT_SIGNING_KEY and TOKEN_DIGEST_KEY must be independent")
+        if self.sec_enabled and (
+            self.sec_user_agent is None
+            or "@" not in self.sec_user_agent
+            or len(self.sec_user_agent) < 8
+        ):
+            raise ValueError(
+                "SEC_ENABLED requires SEC_USER_AGENT with an application name "
+                "and monitored contact email"
+            )
+        if self.stock_upload_max_per_asset > self.stock_upload_max_per_user:
+            raise ValueError(
+                "STOCK_UPLOAD_MAX_PER_ASSET must not exceed "
+                "STOCK_UPLOAD_MAX_PER_USER"
+            )
         if self.provider_retry_max_seconds < self.provider_retry_base_seconds:
             raise ValueError(
                 "PROVIDER_RETRY_MAX_SECONDS must be at least "
@@ -354,6 +440,14 @@ class Settings(BaseSettings):
             raise ValueError(
                 "BINANCE_SPOT_INTERACTIVE_RESERVE must not exceed "
                 "BINANCE_SPOT_WEIGHT_LIMIT_PER_MINUTE"
+            )
+        if (
+            self.binance_futures_interactive_reserve
+            > self.binance_futures_weight_limit_per_minute
+        ):
+            raise ValueError(
+                "BINANCE_FUTURES_INTERACTIVE_RESERVE must not exceed "
+                "BINANCE_FUTURES_WEIGHT_LIMIT_PER_MINUTE"
             )
         active_coingecko_minute_limit = (
             self.coingecko_demo_limit_per_minute
@@ -389,6 +483,20 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "staging/production Argon2id settings are below the safety floor"
                 )
+            sensitive_values = {
+                "JWT_SIGNING_KEY": self.jwt_signing_key.get_secret_value(),
+                "TOKEN_DIGEST_KEY": self.token_digest_key.get_secret_value(),
+                "DATABASE_URL": self.database_dsn,
+                "MIGRATION_DATABASE_URL": self.migration_database_dsn,
+            }
+            for name, value in sensitive_values.items():
+                normalized = value.casefold()
+                if "change_me" in normalized or "local-" in normalized:
+                    raise ValueError(f"{name} contains a documented placeholder")
+            if self.environment is Environment.PRODUCTION and any(
+                origin.startswith("http://") for origin in self.cors_origins
+            ):
+                raise ValueError("production CORS origins must use HTTPS")
         return self
 
     @property

@@ -50,6 +50,15 @@ class StockMarketDataStatus(StrEnum):
     UNAVAILABLE = "unavailable"
 
 
+class StockMarketDataKind(StrEnum):
+    """Contractually distinct market-data latency/use classes."""
+
+    REAL_TIME = "real_time"
+    DELAYED = "delayed"
+    END_OF_DAY = "end_of_day"
+    HISTORICAL = "historical"
+
+
 class StockProviderLicense(_StockModel):
     """Reviewed terms evidence required before an adapter can be activated."""
 
@@ -59,6 +68,11 @@ class StockProviderLicense(_StockModel):
     terms_reviewed_on: date
     display_authorized: bool
     quote_delay_minutes: int = Field(ge=0, le=1_440)
+    quote_data_kind: StockMarketDataKind
+    history_data_kind: StockMarketDataKind
+    authorization_reference: str | None = Field(default=None, max_length=160)
+    authorization_scope: str | None = Field(default=None, max_length=500)
+    authorization_expires_on: date | None = None
     attribution: str = Field(min_length=1, max_length=300)
 
     @field_validator("provider", "plan", "attribution")
@@ -68,6 +82,29 @@ class StockProviderLicense(_StockModel):
         if not normalized:
             raise ValueError("license text must not be blank")
         return normalized
+
+    @model_validator(mode="after")
+    def require_written_display_authorization(self) -> StockProviderLicense:
+        if self.quote_data_kind is StockMarketDataKind.REAL_TIME:
+            if self.quote_delay_minutes != 0:
+                raise ValueError("real-time quotes must have a zero-minute delay")
+        elif (
+            self.quote_data_kind is StockMarketDataKind.DELAYED
+            and self.quote_delay_minutes <= 0
+        ):
+            raise ValueError("delayed quotes must record a positive delay")
+        if self.display_authorized:
+            if not self.authorization_reference or not self.authorization_scope:
+                raise ValueError(
+                    "display-authorized providers require written authorization "
+                    "reference and scope"
+                )
+            if (
+                self.authorization_expires_on is not None
+                and self.authorization_expires_on < self.terms_reviewed_on
+            ):
+                raise ValueError("authorization expiry precedes the terms review")
+        return self
 
 
 class StockLicenseDisclosure(_StockModel):
@@ -80,6 +117,11 @@ class StockLicenseDisclosure(_StockModel):
     terms_url: AnyHttpUrl | None = None
     terms_reviewed_on: date | None = None
     quote_delay_minutes: int | None = Field(default=None, ge=0, le=1_440)
+    quote_data_kind: StockMarketDataKind | None = None
+    history_data_kind: StockMarketDataKind | None = None
+    authorization_reference: str | None = None
+    authorization_scope: str | None = None
+    authorization_expires_on: date | None = None
     attribution: str | None = None
     message: str = Field(min_length=1, max_length=500)
 
@@ -108,7 +150,7 @@ class StockSearchData(_StockModel):
 
 
 class StockProfile(_StockModel):
-    """Provider-neutral company profile; SEC identity joins arrive in Phase 8."""
+    """Provider-neutral company profile shared by market and official sources."""
 
     symbol: str = Field(min_length=1, max_length=12)
     company_name: str = Field(min_length=1, max_length=240)
@@ -275,6 +317,7 @@ __all__ = [
     "StockExchange",
     "StockInterval",
     "StockLicenseDisclosure",
+    "StockMarketDataKind",
     "StockMarketDataProvider",
     "StockMarketDataStatus",
     "StockProfile",

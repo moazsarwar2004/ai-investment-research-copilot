@@ -6,9 +6,12 @@ from datetime import datetime
 
 import pytest
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import ASGITransport, AsyncClient
 
 from backend import __version__
+from backend.app.core.config import Settings
+from backend.app.core.resources import ApplicationResources
+from backend.app.main import create_application
 from backend.app.tests.conftest import StubCloseResource, StubHealthResource
 
 pytestmark = pytest.mark.asyncio
@@ -148,3 +151,48 @@ async def test_openapi_is_available_when_docs_are_enabled(
 
     assert response.status_code == 200
     assert response.json()["info"]["version"] == __version__
+
+
+async def test_metrics_use_route_templates_without_asset_labels(
+    client: AsyncClient,
+) -> None:
+    research = await client.get(
+        "/api/v1/stocks/OGDC/research",
+        params={"exchange": "PSX", "interval": "1d", "days": 365},
+    )
+    response = await client.get("/metrics")
+
+    assert research.status_code == 200
+    assert response.status_code == 200
+    assert "copilot_http_requests_total" in response.text
+    assert 'route="/api/v1/stocks/{symbol}/research"' in response.text
+    assert "OGDC" not in response.text
+
+
+async def test_global_api_rate_limit_exempts_health_probes(
+    test_settings: Settings,
+    resources: ApplicationResources,
+) -> None:
+    settings = test_settings.model_copy(
+        update={
+            "api_rate_limit_requests": 2,
+            "api_rate_limit_window_seconds": 60,
+        }
+    )
+    application = create_application(settings, resources)
+    async with (
+        application.router.lifespan_context(application),
+        AsyncClient(
+            transport=ASGITransport(app=application),
+            base_url="http://testserver",
+        ) as limited_client,
+    ):
+        first = await limited_client.get("/api/v1/health")
+        second = await limited_client.get("/api/v1/health")
+        limited = await limited_client.get("/api/v1/health")
+        live = await limited_client.get("/livez")
+
+    assert first.status_code == second.status_code == 200
+    assert limited.status_code == 429
+    assert int(limited.headers["retry-after"]) >= 1
+    assert live.status_code == 200

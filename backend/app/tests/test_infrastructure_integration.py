@@ -44,7 +44,7 @@ async def test_postgres_pgvector_and_redis_round_trip() -> None:
             )
 
         assert isinstance(vector_version, str)
-        assert migration_revision == "20260721_0002"
+        assert migration_revision == "20260806_0003"
         assert await cache.ping() is True
         assert await cache.write(
             "integration:cache:phase2:none:roundtrip",
@@ -146,6 +146,54 @@ async def test_identity_rotation_rate_limit_rbac_and_ownership() -> None:
                 )
                 created_user_ids.extend([owner_id, other_id])
 
+                csv_lines = ["date,open,high,low,close,volume"]
+                csv_lines.extend(
+                    f"2026-01-{day:02d},{99 + day},{102 + day},"
+                    f"{98 + day},{100 + day},500000"
+                    for day in range(1, 31)
+                )
+                upload_body = {
+                    "filename": "ogdc-private.csv",
+                    "source_label": "Integration test fixture",
+                    "source_timestamp": "2026-02-01T00:00:00Z",
+                    "currency": "PKR",
+                    "csv_text": "\n".join(csv_lines),
+                }
+                upload = await client.post(
+                    "/api/v1/stocks/OGDC/price-uploads?exchange=PSX",
+                    json=upload_body,
+                    headers={"Authorization": f"Bearer {owner_access}"},
+                )
+                assert upload.status_code == 201
+                upload_id = upload.json()["upload"]["upload_id"]
+                duplicate_upload = await client.post(
+                    "/api/v1/stocks/OGDC/price-uploads?exchange=PSX",
+                    json=upload_body,
+                    headers={"Authorization": f"Bearer {owner_access}"},
+                )
+                assert duplicate_upload.status_code == 201
+                assert duplicate_upload.json()["upload"]["upload_id"] == upload_id
+
+                owner_uploads = await client.get(
+                    "/api/v1/stocks/OGDC/price-uploads?exchange=PSX",
+                    headers={"Authorization": f"Bearer {owner_access}"},
+                )
+                assert owner_uploads.status_code == 200
+                assert [item["upload_id"] for item in owner_uploads.json()] == [
+                    upload_id
+                ]
+                other_uploads = await client.get(
+                    "/api/v1/stocks/OGDC/price-uploads?exchange=PSX",
+                    headers={"Authorization": f"Bearer {other_access}"},
+                )
+                assert other_uploads.status_code == 200
+                assert other_uploads.json() == []
+                cross_owner_upload = await client.get(
+                    f"/api/v1/stocks/OGDC/price-uploads/{upload_id}?exchange=PSX",
+                    headers={"Authorization": f"Bearer {other_access}"},
+                )
+                assert cross_owner_upload.status_code == 404
+
                 other_sessions = await client.get(
                     "/api/v1/users/me/sessions",
                     headers={"Authorization": f"Bearer {other_access}"},
@@ -168,6 +216,17 @@ async def test_identity_rotation_rate_limit_rbac_and_ownership() -> None:
                     headers={"Authorization": f"Bearer {admin_access}"},
                 )
                 assert admin_read.status_code == 200
+
+                deleted_upload = await client.delete(
+                    f"/api/v1/stocks/OGDC/price-uploads/{upload_id}?exchange=PSX",
+                    headers={"Authorization": f"Bearer {owner_access}"},
+                )
+                assert deleted_upload.status_code == 204
+                missing_upload = await client.get(
+                    f"/api/v1/stocks/OGDC/price-uploads/{upload_id}?exchange=PSX",
+                    headers={"Authorization": f"Bearer {owner_access}"},
+                )
+                assert missing_upload.status_code == 404
 
                 rotated = await client.post(
                     "/api/v1/auth/refresh",
@@ -205,6 +264,10 @@ async def test_identity_rotation_rate_limit_rbac_and_ownership() -> None:
                 assert audit_read.status_code == 200
                 assert any(
                     item["action"] == "auth.refresh_replay_detected"
+                    for item in audit_read.json()
+                )
+                assert any(
+                    item["action"] == "stock_price_upload.created"
                     for item in audit_read.json()
                 )
                 async with manager.session() as session:

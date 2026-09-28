@@ -14,7 +14,7 @@ from backend.app.core.exceptions import AuthenticationError, ServiceUnavailableE
 from backend.app.core.identity_security import IdentitySecurity
 from backend.app.core.rate_limits import AuthRateLimiter
 from backend.app.database import get_database_session
-from backend.app.repositories import IdentityRepository
+from backend.app.repositories import IdentityRepository, StockUploadRepository
 from backend.app.services import (
     BinanceSpotService,
     CryptoService,
@@ -22,7 +22,9 @@ from backend.app.services import (
     IdentityService,
     RequestContext,
     StockService,
+    StockUploadService,
 )
+from backend.app.services.binance_futures_service import BinanceFuturesService
 
 bearer_scheme = HTTPBearer(auto_error=False)
 DatabaseSessionDependency = Annotated[AsyncSession, Depends(get_database_session)]
@@ -82,6 +84,16 @@ def get_binance_spot_service(request: Request) -> BinanceSpotService:
     return service
 
 
+def get_binance_futures_service(request: Request) -> BinanceFuturesService:
+    """Return the process-owned, research-only Binance Futures service."""
+    service = getattr(request.app.state, "binance_futures_service", None)
+    if not isinstance(service, BinanceFuturesService):
+        raise ServiceUnavailableError(
+            "Binance Futures research is disabled or unavailable."
+        )
+    return service
+
+
 def get_crypto_service(request: Request) -> CryptoService:
     """Return the process-owned, read-only general crypto research service."""
     service = getattr(request.app.state, "crypto_service", None)
@@ -96,6 +108,22 @@ def get_stock_service(request: Request) -> StockService:
     if not isinstance(service, StockService):
         raise ServiceUnavailableError("Stock research is unavailable.")
     return service
+
+
+async def get_stock_upload_service(
+    request: Request,
+    session: DatabaseSessionDependency,
+    settings: Annotated[Settings, Depends(get_request_settings)],
+) -> AsyncIterator[StockUploadService]:
+    """Build an owner-scoped private upload service over one transaction."""
+    security = getattr(request.app.state, "identity_security", None)
+    if not isinstance(security, IdentitySecurity):
+        raise ServiceUnavailableError("Identity security is unavailable.")
+    yield StockUploadService(
+        StockUploadRepository(session),
+        settings,
+        security=security,
+    )
 
 
 async def get_current_principal(

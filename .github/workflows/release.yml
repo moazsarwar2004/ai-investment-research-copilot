@@ -1,0 +1,43 @@
+name: Build release image
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Log in to GitHub Container Registry
+        env:
+          CR_PAT: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$CR_PAT" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build immutable image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/ai-investment-research-copilot
+        run: docker build --tag "$IMAGE:${{ github.sha }}" .
+
+      - name: Push immutable image
+        env:
+          IMAGE: ghcr.io/${{ github.repository_owner }}/ai-investment-research-copilot
+        run: docker push "$IMAGE:${{ github.sha }}"
+
+      - name: Summarize manual deployment boundary
+        run: >-
+          echo "Image ${{ github.sha }} published. Production deployment remains
+          manual and must follow docs/deployment.md, including backup, migration,
+          readiness, smoke, and rollback checks." >> "$GITHUB_STEP_SUMMARY"

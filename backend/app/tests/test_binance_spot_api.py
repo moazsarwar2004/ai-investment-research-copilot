@@ -124,5 +124,5 @@ async def test_binance_routes_are_documented_and_service_can_be_disabled(
         term in path
         for path in openapi["paths"]
         for term in ("order", "account", "balance", "withdraw", "position")
-        if "/order-book" not in path
+        if "/order-book" not in path and "/binance/futures/" not in path
     )

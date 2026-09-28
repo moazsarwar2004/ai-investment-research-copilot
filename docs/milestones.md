@@ -16,7 +16,7 @@ Phases remain sequential as requested. A later phase may be discussed, but imple
 | 5 | Deliver Binance Spot MVP | Public ticker/candles/book/trades, analytics/liquidity/risk, first Streamlit research page | Mock/API contract tests, symbol/weight controls and UI loading/error/stale states pass |
 | 6 | Add general crypto | Coin search/global/overview/history, analytics/anomalies/risk and quota budget | Terms recheck, call-budget test, symbol ambiguity test and cached UI demo pass |
 | 7 | Add stocks | Exchange-neutral provider abstraction; PSX-default search/profile/quote/candles when licensed; technicals, risk and UI | External-display license recorded or quote stays unavailable; exchange-identity and SEC-independent tests pass |
-| 8 | Add SEC and fundamentals | Ticker/CIK, submissions, filing download/parse/sections, XBRL statements/ratios/comparison/risk | User-Agent/rate controls, representative filings, amended facts and source-link tests pass |
+| 8 | Add official fundamentals and private stock data | SEC ticker/submissions/XBRL; validated PSX/SECP/company-report manifests; statements/ratios/fundamental risk; owner-private CSV technicals; four explicit data modes | User-Agent/rate controls, representative official-data fixtures, amended/duplicate handling, source links, CSV validation and cross-owner denial tests pass |
 | 9 | Add Binance Futures | Public mark/index/funding/OI/basis/positioning, anomalies/risk and disclaimer | Jurisdiction/reachability gate, mocked provider tests and no-trading surface audit pass |
 | 10 | Complete deterministic analytics | Indicators, ratios, volatility/drawdown, trend/risk/anomaly rules, validation/source verification | Golden datasets, edge cases, missing-input renormalization and reproducibility tests pass |
 | 11 | Add measured ML | Features, temporal splits, trend classifier, optional Isolation Forest, artifacts/inference/fallback | No-leakage test and baseline comparison; activate only if it beats documented rules |
@@ -43,6 +43,12 @@ Outcome: locally runnable, tested API with persistent storage, queue/cache, auth
 ### M2 — Deterministic research MVP (Phases 5–10)
 
 Outcome: Binance Spot/Futures, crypto, conditionally licensed stock pricing, SEC/fundamentals and complete non-LLM analytics. This is the first meaningful research product and must remain functional without ML/Ollama.
+
+Phase 9 implementation is complete: free unauthenticated USD-M perpetual market
+research, partial/stale handling, explainable crowding/risk, a Streamlit journey,
+and a no-trading API audit are covered by synthetic tests. Production enablement
+remains intentionally gated by a host reachability check and local availability
+review; see [phase_9_binance_futures.md](phase_9_binance_futures.md).
 
 ### M3 — ML, RAG and reports (Phases 11–15)
 

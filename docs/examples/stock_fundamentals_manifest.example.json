@@ -1,0 +1,62 @@
+{
+  "schema_version": "official-report-manifest-v2",
+  "generated_at": "2026-09-19T00:00:00Z",
+  "source_name": "operator-reviewed-official-reports",
+  "attribution": "Illustrative schema only; replace with official sources",
+  "terms_review_version": "illustrative-not-for-production",
+  "allowed_source_hosts": ["example.invalid"],
+  "companies": [
+    {
+      "review": {
+        "status": "candidate",
+        "human_reviewer": null,
+        "reviewed_at": null,
+        "notes": "A candidate is validated but never published.",
+        "source_identity_checked": false,
+        "statement_basis_checked": false,
+        "figures_checked": false,
+        "unit_conversion_checked": false,
+        "accounting_checks_checked": false
+      },
+      "fundamentals": {
+        "symbol": "DEMO",
+        "exchange": "PSX",
+        "profile": {
+          "symbol": "DEMO",
+          "company_name": "Illustrative Company Limited",
+          "exchange": "PSX",
+          "currency": "PKR",
+          "country": "Pakistan",
+          "sector": "Illustrative",
+          "industry": "Illustrative",
+          "website": "https://example.invalid/company",
+          "description": "Illustrative schema record; not real company data.",
+          "provider_id": "PSX:DEMO"
+        },
+        "fundamental_model": "corporate",
+        "periods": [],
+        "reports": [
+          {
+            "report_id": "illustrative-annual-2025",
+            "report_type": "annual",
+            "title": "Illustrative Annual Report 2025",
+            "published_at": "2026-02-01",
+            "publication_period": null,
+            "approved_at": "2026-01-31",
+            "period_end": "2025-12-31",
+            "source_url": "https://example.invalid/company/annual-report-2025.pdf",
+            "source_name": "Illustrative company investor relations",
+            "accession_number": null,
+            "amended": false,
+            "reporting_basis": "consolidated",
+            "document_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "document_page_count": 100
+          }
+        ],
+        "source_warnings": [
+          "Illustrative schema only; do not enable in production."
+        ]
+      }
+    }
+  ]
+}

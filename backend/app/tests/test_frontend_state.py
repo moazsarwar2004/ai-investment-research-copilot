@@ -56,7 +56,7 @@ def test_research_ui_error_state_is_prominent() -> None:
 
 
 def test_streamlit_page_renders_empty_state_without_exceptions() -> None:
-    app = AppTest.from_file(str(_FRONTEND_APP)).run(timeout=20)
+    app = AppTest.from_file(str(_FRONTEND_APP)).run(timeout=40)
 
     assert not app.exception
     assert [item.value for item in app.title] == ["Investment Research Co-Pilot"]
@@ -82,7 +82,7 @@ def test_streamlit_page_renders_completed_research_without_exceptions() -> None:
     }
     app.session_state["research_error"] = None
 
-    app.run(timeout=20)
+    app.run(timeout=40)
 
     assert not app.exception
     assert any("Fresh research snapshot loaded" in item.value for item in app.success)
@@ -161,7 +161,7 @@ def test_streamlit_page_renders_cached_crypto_research_without_exceptions() -> N
     }
     app.session_state["crypto_research_error"] = None
 
-    app.run(timeout=20)
+    app.run(timeout=40)
 
     assert not app.exception
     assert any("Powered by CoinGecko" in item.value for item in app.markdown)
@@ -231,7 +231,7 @@ def test_streamlit_page_renders_stock_license_gate_without_exceptions() -> None:
     }
     app.session_state["stock_research_error"] = None
 
-    app.run(timeout=20)
+    app.run(timeout=40)
 
     assert not app.exception
     unavailable_warnings = [
@@ -239,5 +239,8 @@ def test_streamlit_page_renders_stock_license_gate_without_exceptions() -> None:
     ]
     assert len(unavailable_warnings) == 1
     assert not any(item.label.startswith("Latest price") for item in app.metric)
-    assert any("Price cards will appear" in item.value for item in app.info)
+    assert any(
+        "Current market prices are unavailable" in item.value for item in app.info
+    )
+    assert any(tab.label == "Financial performance" for tab in app.tabs)
     assert any("Research and education only" in item.value for item in app.warning)

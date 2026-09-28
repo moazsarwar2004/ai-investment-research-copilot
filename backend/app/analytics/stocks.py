@@ -307,7 +307,7 @@ def build_stock_risk(
         missing_inputs=missing,
         limitations=[
             "Risk is deterministic price/volume context, not a recommendation.",
-            "SEC fundamental risk components are added in Phase 8.",
+            "Official-report fundamental risk is reported separately.",
         ],
     )
 

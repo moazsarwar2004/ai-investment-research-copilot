@@ -7,11 +7,13 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Request, Response, status
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, ConfigDict
 
 from backend.app.core.config import Settings
 from backend.app.core.exceptions import ServiceUnavailableError
 from backend.app.core.logger import get_logger
+from backend.app.core.metrics import RequestMetrics
 from backend.app.core.resources import ApplicationResources, HealthResource
 
 logger = get_logger(__name__)
@@ -151,6 +153,19 @@ async def readiness(request: Request, response: Response) -> ReadinessResponse:
             database="ok" if database_ok else "error",
             redis="ok" if redis_ok else "degraded",
         ),
+    )
+
+
+@probe_router.get("/metrics", include_in_schema=False, response_class=PlainTextResponse)
+async def metrics(request: Request) -> PlainTextResponse:
+    """Expose low-cardinality process metrics for the private monitoring network."""
+    registry = getattr(request.app.state, "request_metrics", None)
+    if not isinstance(registry, RequestMetrics):
+        raise ServiceUnavailableError("Request metrics are unavailable.")
+    return PlainTextResponse(
+        registry.render(),
+        media_type="text/plain; version=0.0.4; charset=utf-8",
+        headers={"Cache-Control": "no-store"},
     )
 
 

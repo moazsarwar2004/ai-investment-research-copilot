@@ -21,6 +21,7 @@ from backend.app.providers.stocks import (
     StockCandlesData,
     StockExchange,
     StockInterval,
+    StockMarketDataKind,
     StockMarketDataProvider,
     StockProfile,
     StockProviderLicense,
@@ -65,6 +66,12 @@ class FixtureStockProvider(StockMarketDataProvider):
             terms_reviewed_on=date(2025, 8, 8),
             display_authorized=authorized,
             quote_delay_minutes=15,
+            quote_data_kind=StockMarketDataKind.DELAYED,
+            history_data_kind=StockMarketDataKind.HISTORICAL,
+            authorization_reference="fixture-contract-2025",
+            authorization_scope=(
+                "Test-only display, caching, and derived analytics authorization."
+            ),
             attribution="Dated offline demonstration data",
         )
         self.calls: list[tuple[str, StockExchange, str]] = []
@@ -172,6 +179,21 @@ async def test_unavailable_service_is_safe_and_exchange_neutral() -> None:
 def test_provider_activation_requires_recorded_display_rights() -> None:
     with pytest.raises(ProviderConfigurationError, match="display rights"):
         StockService(FixtureStockProvider(authorized=False))
+
+
+def test_display_authorization_requires_written_reference_and_scope() -> None:
+    with pytest.raises(ValueError, match="written authorization"):
+        StockProviderLicense(
+            provider="Unverified Feed",
+            plan="Public endpoint",
+            terms_url=AnyHttpUrl("https://example.invalid/terms"),
+            terms_reviewed_on=date(2026, 9, 26),
+            display_authorized=True,
+            quote_delay_minutes=15,
+            quote_data_kind=StockMarketDataKind.DELAYED,
+            history_data_kind=StockMarketDataKind.HISTORICAL,
+            attribution="Unverified source",
+        )
 
 
 async def test_licensed_fixture_builds_stock_research_without_live_calls() -> None:

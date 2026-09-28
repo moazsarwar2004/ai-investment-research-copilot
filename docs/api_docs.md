@@ -5,6 +5,15 @@ Format: JSON over HTTPS
 Authentication: bearer access token for protected API calls; rotating refresh token is accepted only by the refresh/logout flow.  
 Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precision must be preserved.
 
+## Implementation status
+
+The application source and generated OpenAPI document are the route source of
+truth. Through Phase 8, the implemented namespaces are health/probes, identity,
+Binance Spot, general crypto, and stock research/private CSV uploads. Sections
+explicitly marked **planned** describe later phase contracts and are not callable
+today. In particular, futures, RAG, asynchronous reports, watchlists, alerts,
+notifications, and most admin operations are not Phase 8 features.
+
 ## 1. Cross-cutting conventions
 
 - Every response includes `X-Request-ID`; callers may supply a valid request ID.
@@ -21,10 +30,8 @@ Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precisi
 |---|---|---|---|
 | GET | `/livez` | Public monitor | Process is alive; no dependency fan-out |
 | GET | `/readyz` | Public monitor, reduced detail | API can serve; returns only aggregate readiness publicly |
-| GET | `/health/providers` | Admin/internal | Provider/database/Redis/worker detail; never public through Caddy |
+| GET | `/api/v1/health` | Internal | Database and Redis readiness detail; not routed publicly through Caddy |
 | GET | `/metrics` | Internal collector only | Prometheus metrics; private network only |
-| GET | `/api/v1/system/status` | Public | Sanitized service state and freshness explanation |
-| GET | `/api/v1/system/disclaimer` | Public | Versioned research-only disclaimer |
 
 ## 3. Authentication and account
 
@@ -41,7 +48,6 @@ Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precisi
 | POST | `/auth/password-reset/confirm` | Single-use token | Replace password and revoke sessions |
 | GET | `/users/me` | User | Current profile/role/preferences summary |
 | PATCH | `/users/me` | User | Update allowed profile/preferences fields |
-| DELETE | `/users/me` | User + fresh auth | Queue account deletion/anonymization |
 | GET | `/users/me/sessions` | User | List sanitized active sessions |
 | DELETE | `/users/me/sessions/{session_id}` | Owner | Revoke one session |
 
@@ -53,27 +59,31 @@ Dates/times: ISO 8601 UTC. Monetary values are JSON strings when decimal precisi
 | GET | `/stocks/{symbol}` | Guest limited | Company/quote overview with unavailable fields when unlicensed |
 | GET | `/stocks/{symbol}/candles` | Guest limited | Normalized OHLCV with interval/range validation |
 | GET | `/stocks/{symbol}/technicals` | Guest limited | Deterministic indicator set |
-| GET | `/stocks/{symbol}/financials` | Guest limited | SEC XBRL normalized statements |
-| GET | `/stocks/{symbol}/ratios` | Guest limited | Deterministic financial ratios |
+| GET | `/stocks/{symbol}/financials` | Guest limited | SEC XBRL or human-approved official-report statements |
+| GET | `/stocks/{symbol}/ratios` | Guest limited | Sector-aware deterministic financial ratios |
 | GET | `/stocks/{symbol}/trend` | Guest limited | Rule/model class probabilities and version |
-| GET | `/stocks/{symbol}/anomalies` | Guest limited | Rule/z-score/optional model anomalies |
 | GET | `/stocks/{symbol}/risk` | Guest limited | Explainable stock risk contract |
 | GET | `/stocks/{symbol}/research` | Guest limited | Aggregated partial response for the UI |
 | GET | `/stocks/{symbol}/filings` | Guest limited | 10-K/10-Q/8-K index |
-| GET | `/filings/{filing_id}` | Guest limited | Filing metadata and extracted sections |
-| GET | `/filings/{filing_id}/sections/{section}` | Guest limited | Evidence section with source anchors |
-| GET | `/filings/compare` | Guest limited | Compare `latest_id` and `previous_id` |
-| POST | `/filings/{filing_id}/ingest` | Admin, idempotent | Queue parse/chunk/embed pipeline |
+| POST | `/stocks/{symbol}/price-uploads` | User | Validate and privately analyze OHLCV CSV text |
+| GET | `/stocks/{symbol}/price-uploads` | Owner | List the current user's private uploads for the stock |
+| GET | `/stocks/{symbol}/price-uploads/{upload_id}` | Owner | Resolve one private upload and its deterministic analytics |
+| DELETE | `/stocks/{symbol}/price-uploads/{upload_id}` | Owner | Delete one private upload |
 
-Phase 7 implements search, overview, candles, technicals, trend, risk, and the
-aggregate research route. Each accepts `exchange=PSX|NASDAQ|NYSE`; PSX is the
+Phase 8 implements financials, ratios, filing links, official-report aggregation,
+and authenticated private price uploads. Each accepts
+`exchange=PSX|NASDAQ|NYSE`; PSX is the
 product default, while canonical identity remains `exchange:symbol`. Until a
 provider record proves external-display permission, price-dependent responses
 remain HTTP 200 with null components, `freshness: unavailable`, `partial: true`,
-and a stable license warning. Financials, ratios, filings, and stock anomalies
-remain assigned to later phases.
+and a stable license warning. A future provider disclosure identifies its
+real-time/delayed/EOD/historical classes and written authorization scope.
+Official fundamentals remain independent, but PSX manifest companies appear
+only after a named human approval; valid candidates still return unavailable.
+Private upload bodies are JSON containing bounded UTF-8 `csv_text`; accepted
+columns are exactly `date,open,high,low,close,volume`, with 20–1,500 daily rows.
 
-## 5. RAG
+## 5. RAG (planned Phase 13)
 
 | Method | Route | Access | Purpose |
 |---|---|---|---|
@@ -140,19 +150,21 @@ Product bounds are deliberately smaller than the upstream maxima:
 - Aggregate research may be `partial: true`; unavailable components are `null`
   and named in stable warnings while successful components remain usable.
 
-## 8. Binance Futures
+## 8. Binance Futures (implemented Phase 9)
 
 | Method | Route | Access | Purpose |
 |---|---|---|---|
 | GET | `/binance/futures/symbols` | Guest limited | Public contract metadata |
-| GET | `/binance/futures/{symbol}/market` | Guest limited | Futures/mark/index/spot/basis snapshot |
+| GET | `/binance/futures/status` | Guest limited | Feature flag and cached reachability state |
+| GET | `/binance/futures/{symbol}/market` | Guest limited | Mark/index/funding snapshot |
 | GET | `/binance/futures/{symbol}/funding` | Guest limited | Current and bounded funding history |
+| GET | `/binance/futures/{symbol}/basis` | Guest limited | Bounded perpetual basis history |
 | GET | `/binance/futures/{symbol}/open-interest` | Guest limited | Current/history/anomaly |
 | GET | `/binance/futures/{symbol}/positioning` | Guest limited | Responsibly available ratios/taker flow |
 | GET | `/binance/futures/{symbol}/risk` | Guest limited | Explainable futures risk |
 | GET | `/binance/futures/{symbol}/research` | Guest limited | Aggregated partial UI response |
 
-## 9. Reports and jobs
+## 9. Reports and jobs (planned Phase 15)
 
 | Method | Route | Access | Purpose |
 |---|---|---|---|
@@ -166,7 +178,7 @@ Product bounds are deliberately smaller than the upstream maxima:
 
 `POST /reports` returns `202 Accepted`, job/report IDs, generation mode expectation and status URL. A duplicate idempotency key with the same body returns the original result; a different body returns `409 idempotency_conflict`.
 
-## 10. Watchlists, alerts and notifications
+## 10. Watchlists, alerts and notifications (planned Phase 16)
 
 | Method | Route | Access | Purpose |
 |---|---|---|---|
@@ -188,6 +200,10 @@ Product bounds are deliberately smaller than the upstream maxima:
 
 ## 11. Admin
 
+Only `GET /admin/users`, `PATCH /admin/users/{user_id}`, and
+`GET /admin/audit-logs` are implemented through Phase 8. The remaining routes
+in this section are planned contracts.
+
 | Method | Route | Access | Purpose |
 |---|---|---|---|
 | GET | `/admin/overview` | Admin | Sanitized operational dashboard |
@@ -205,7 +221,13 @@ Product bounds are deliberately smaller than the upstream maxima:
 | PATCH | `/admin/feature-flags/{key}` | Admin + fresh auth | Versioned audited flag update |
 | GET | `/admin/audit-logs` | Admin | Filtered append-only audit view |
 
-## 12. Initial rate-limit classes
+## 12. Rate limits
+
+The implemented pilot has a Redis-first global API budget of 120 requests per
+60 seconds per client address (configurable), plus the stricter authentication
+attempt budget of 5 per 15 minutes. Provider-specific quota managers apply
+separate ceilings. The classes below are later-phase targets, not all current
+enforcement rules.
 
 Exact values are configuration and load-test outputs, but the policy starts with:
 

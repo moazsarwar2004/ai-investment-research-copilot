@@ -1,6 +1,8 @@
 # Data Sources and Provider Policy
 
-Verification date: 2026-07-13. See [free_resource_verification.md](free_resource_verification.md) for official evidence and limits.
+Baseline verification date: 2026-07-13. PSX-specific terms and sources were
+rechecked on 2026-09-26; Binance Futures public market documentation was
+rechecked on 2026-09-28.
 
 ## 1. Selection principles
 
@@ -24,6 +26,8 @@ Verification date: 2026-07-13. See [free_resource_verification.md](free_resource
 | General crypto | CoinGecko Demo or keyless public API | Demo key preferred; keyless fallback | Low-volume non-commercial educational pilot | 3–30 min by endpoint and batching | Prominent “Powered by CoinGecko”; ≥60 s freshness on Demo | 9,000-call local budget, stale cache, partial fields | Implemented for pilot |
 | Stock quote/candles | No live provider selected; PSX and global candidates reviewed | None | Latest/delayed price and historical candles | 10–60 min | Provider, plan, exchange, currency and delay required | Return structured unavailable response | License-gated |
 | Company identity | SEC ticker/CIK; future PSX/SECP source; licensed stock provider | User-Agent / TBD | Exchange-qualified symbol/company/regulator mapping | Daily | Regulator/provider | Cached mapping | Approved for SEC fields; PSX source pending |
+| Pakistan official reports | Human-reviewed official company investor-relations links and normalized manifest | Local operator configuration | Company profile, periods, report links, ratios and fundamental risk | Replaced by reviewed manifest | Report URL/hash/page, fact label/value/unit/basis, manifest review | Candidate/rejected entries stay unpublished; never scrape or infer missing facts | V2 fail-closed boundary implemented; FY2024/FY2025 SYS/MEBL approved |
+| Private price CSV | Legally obtained user-supplied UTF-8 CSV | Authenticated owner | Daily OHLCV technical/trend/risk analysis | Durable until owner deletion | User source label/date, upload time, content hash | Owner-only; no sharing or provider attribution | Implemented |
 | Local embeddings | Selected open-source sentence-transformer | Local | Filing chunk vectors | Permanent per content+model hash | Model name/version/hash | BM25-only retrieval | Selection gate |
 | Local LLM | Small quantized instruct model via Ollama | Local | Optional report/answer wording | Report cache 1–6 h | Model/prompt/schema version | Template/retrieval-only fallback | Benchmark gate |
 
@@ -50,6 +54,10 @@ Official references: [SEC access and fair-use guidance](https://www.sec.gov/sear
 - Set bounded depth/trade/candle limits so a user cannot amplify provider weight or response size.
 - No routes, schemas, clients or credentials for orders, accounts, balances, positions, withdrawals or leverage changes.
 - Futures data is feature-flagged independently from Spot and disabled where legal access or reachability is uncertain.
+- Futures uses no credentials or paid plan. It annualizes funding only from
+  consistent observed settlement gaps and never annualizes perpetual basis.
+- Open-interest growth uses contract/base quantity so price changes do not appear
+  as position growth. Aggregate account ratios are labelled as account counts.
 
 Official references: [Binance Spot REST API](https://developers.binance.com/en/docs/products/spot/rest-api) and [Binance USDⓈ-M Futures introduction](https://developers.binance.com/en/docs/products/derivatives-trading-usds-futures/Introduction).
 
@@ -88,10 +96,13 @@ external-display rights for this exchange-neutral pilot:
 
 Phase 7 implements an exchange-neutral provider abstraction, explicit
 `exchange:symbol` identity, deterministic analytics, and dated synthetic test
-fixtures. PSX is the UI default for the Pakistan-focused pilot, not the only
-supported identity. No “live stock” feature may be called production-ready
-until the owner records a provider/plan, terms URL, quota, delay, attribution,
-and display permission.
+fixtures. The Phase 8/PSX hardening adds distinct real-time, delayed,
+end-of-day, and historical classes plus required written authorization reference
+and scope. PSX is the UI default for the Pakistan-focused pilot, not the only
+supported identity. No external stock-price feature may be called
+production-ready until its provider/plan, terms URL, quota, data class,
+attribution, display/derived-data permission, and authorization evidence are
+recorded.
 
 Safe product behavior without a licensed feed:
 
@@ -101,6 +112,11 @@ Safe product behavior without a licensed feed:
 - Risk renormalizes available components and lowers data confidence.
 
 Official candidate references: [PSX Data Services & Vending](https://www.psx.com.pk/psx/product-and-services/data-services-vending), [Twelve Data usage rights](https://support.twelvedata.com/en/articles/5332349-commercial-and-personal-usage), [Twelve Data U.S. equities guidance](https://support.twelvedata.com/en/articles/9935903-us-equities-market-data), [Alpaca redistribution statement](https://alpaca.markets/support/redistribute-alpaca-api), and [Alpha Vantage plans](https://www.alphavantage.co/premium/).
+
+For the current PSX option comparison, licensing email template, manifest
+review gate, and refresh procedure, use
+[`psx_integration.md`](psx_integration.md). Public PSX pages and the published
+Ticker API service charge are not treated as redistribution permission.
 
 ## 7. Provider normalization contract
 

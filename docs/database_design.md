@@ -9,6 +9,9 @@
 - Flexible provider/model metadata uses JSONB with a documented schema and validation at the service boundary.
 - Every foreign key states its delete behavior. User-owned children generally cascade; immutable operational/audit evidence is anonymized or restricted instead of silently cascaded.
 - Migrations are Alembic-only. Production roles cannot issue ad hoc DDL.
+- Phase 8 stores normalized owner-private OHLCV uploads in `stock_price_uploads`;
+  original CSV bytes are not retained and owner/asset/content uniqueness is
+  enforced in PostgreSQL.
 
 ## 2. Logical ERD
 
@@ -228,6 +231,7 @@ The event fingerprint is a hash of alert ID, condition version and evaluation bu
 | `filings` | CIK, company/ticker, form, filing date, accession, source URL, content hash, parse status | unique accession; unique content hash; CIK+form+date desc |
 | `filing_chunks` | filing FK cascade; section, index, content, token count, source anchors, embedding version/vector, lexical document | unique filing+section+chunk; HNSW/IVFFlat vector after benchmark; GIN lexical; metadata filters |
 | `filing_comparisons` | ordered pair of filing FKs; version; added/removed/changed evidence and confidence | unique latest+previous+version |
+| `stock_price_uploads` | owner FK cascade; exchange/symbol/currency; filename/source timestamp; SHA-256; bounded normalized candles; data range/count | unique owner+exchange+symbol+hash; owner+asset+created desc |
 
 Vector dimension is set by the selected embedding model and frozen in its migration/configuration. Changing dimensions creates a new column/table/index version and a controlled re-embedding job.
 
@@ -281,4 +285,3 @@ Admin access uses a separate audited service path; it does not bypass ownership 
 3. Production uses expand/migrate/contract for breaking changes.
 4. A release can roll application images back one version while the expanded schema remains compatible.
 5. Backup and restore are tested before destructive contract migrations.
-
